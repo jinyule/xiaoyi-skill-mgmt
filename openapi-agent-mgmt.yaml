@@ -1,0 +1,1067 @@
+openapi: 3.0.3
+info:
+  title: AgentMgmt API
+  description: |
+    Agent管理后台API，提供Skill审核、下架等管理功能。
+
+    ## 认证方式
+    所有接口需要在Header中携带Bearer Token:
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    ## 权限要求
+    此API仅限管理员角色访问。
+
+    ## 错误码说明
+    - 0: 成功
+    - 400001: 参数错误
+    - 401001: 未认证
+    - 403001: 无权限
+    - 404001: 资源不存在
+    - 100001-100012: Skill业务错误
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api@example.com
+
+servers:
+  - url: https://api.example.com/mgmt
+    description: 生产环境
+  - url: https://api-dev.example.com/mgmt
+    description: 测试环境
+
+tags:
+  - name: Review
+    description: 审核管理接口
+  - name: Internal
+    description: 内部同步接口（仅供AgentConsole调用）
+
+paths:
+  # ==================== 审核管理接口 ====================
+  /api/v1/mgmt/skills/pending:
+    get:
+      tags:
+        - Review
+      summary: 获取待审核Skill列表
+      description: 获取所有待审核状态的Skill列表，支持分页和搜索
+      operationId: listPendingSkills
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: 每页数量
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: keyword
+          in: query
+          description: 关键词搜索（搜索名称、描述、开发者名称）
+          schema:
+            type: string
+            maxLength: 100
+        - name: developerId
+          in: query
+          description: 开发者ID筛选
+          schema:
+            type: string
+        - name: visibility
+          in: query
+          description: 可见性筛选
+          schema:
+            type: integer
+            enum: [0, 1]
+        - name: sortBy
+          in: query
+          description: 排序字段
+          schema:
+            type: string
+            enum: [createdAt, developerName, name]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          description: 排序方向
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingSkillListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      security:
+        - bearerAuth: []
+
+  /api/v1/mgmt/skills/reviewed:
+    get:
+      tags:
+        - Review
+      summary: 获取已审核Skill列表
+      description: 获取所有已审核（通过或拒绝）状态的Skill列表
+      operationId: listReviewedSkills
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          description: 审核状态筛选
+          schema:
+            type: integer
+            enum: [2, 4]
+            description: |
+              - 2: 已通过
+              - 4: 已拒绝
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          description: 审核时间开始
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: 审核时间结束
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewedSkillListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      security:
+        - bearerAuth: []
+
+  /api/v1/mgmt/skills/takedowns:
+    get:
+      tags:
+        - Review
+      summary: 获取已下架Skill列表
+      description: 获取所有已下架状态的Skill列表
+      operationId: listTakedownSkills
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: keyword
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TakedownSkillListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      security:
+        - bearerAuth: []
+
+  /api/v1/mgmt/skills/{skillId}:
+    get:
+      tags:
+        - Review
+      summary: 获取审核详情
+      description: 获取指定Skill的审核详情，包括基本信息和审核历史
+      operationId: getReviewDetail
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /api/v1/mgmt/skills/{skillId}/approve:
+    post:
+      tags:
+        - Review
+      summary: 审核通过
+      description: |
+        审核通过指定的Skill。
+
+        **处理流程：**
+        1. 更新AgentMgmt中的审核状态为已通过
+        2. 若Skill为公有，更新SkillStore状态为已发布
+        3. 回调通知AgentConsole更新状态
+      operationId: approveSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  maxLength: 500
+                  description: 审核意见
+            example:
+              comment: 审核通过，符合发布规范
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      skillId:
+                        type: string
+                      status:
+                        type: integer
+                        description: 新状态（2-已发布）
+                      storeSyncStatus:
+                        type: integer
+                        description: SkillStore同步状态
+        '400':
+          description: 状态不允许审核
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 100003
+                message: Skill状态不允许审核
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /api/v1/mgmt/skills/{skillId}/reject:
+    post:
+      tags:
+        - Review
+      summary: 审核拒绝
+      description: |
+        拒绝Skill的审核申请。
+
+        开发者可以在修改后重新提交审核。
+      operationId: rejectSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  maxLength: 100
+                  description: 拒绝原因（必填）
+                  enum:
+                    - protocol_violation
+                    - security_issue
+                    - inappropriate_content
+                    - copyright_violation
+                    - other
+                reasonText:
+                  type: string
+                  maxLength: 100
+                  description: 自定义拒绝原因（当reason为other时必填）
+                comment:
+                  type: string
+                  maxLength: 500
+                  description: 详细说明
+            example:
+              reason: protocol_violation
+              comment: SKILL.md格式不符合规范，name字段格式错误
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidStatus:
+                  summary: 状态不允许拒绝
+                  value:
+                    code: 100003
+                    message: Skill状态不允许拒绝
+                missingReason:
+                  summary: 缺少拒绝原因
+                  value:
+                    code: 400001
+                    message: 拒绝原因为必填项
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /api/v1/mgmt/skills/{skillId}/takedown:
+    post:
+      tags:
+        - Review
+      summary: 下架Skill
+      description: |
+        下架已发布的Skill。
+
+        **处理流程：**
+        1. 更新AgentMgmt中的状态为已下架
+        2. 更新SkillStore状态为已下架
+        3. 回调通知AgentConsole更新状态
+      operationId: takedownSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  maxLength: 100
+                  description: 下架原因
+                  enum:
+                    - security_vulnerability
+                    - policy_violation
+                    - copyright_infringement
+                    - malware_detected
+                    - user_report
+                    - developer_request
+                    - other
+                reasonText:
+                  type: string
+                  maxLength: 100
+                  description: 自定义下架原因
+                comment:
+                  type: string
+                  maxLength: 500
+                  description: 详细说明
+                notifyDeveloper:
+                  type: boolean
+                  default: true
+                  description: 是否通知开发者
+            example:
+              reason: policy_violation
+              comment: 包含违规内容
+              notifyDeveloper: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          description: 状态不允许下架
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 100003
+                message: Skill状态不允许下架
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /api/v1/mgmt/skills/{skillId}/republish:
+    post:
+      tags:
+        - Review
+      summary: 重新发布Skill
+      description: 将已下架的Skill重新发布
+      operationId: republishSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  maxLength: 500
+                  description: 重新发布说明
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          description: 状态不允许重新发布
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /api/v1/mgmt/skills/{skillId}/logs:
+    get:
+      tags:
+        - Review
+      summary: 获取审核历史
+      description: 获取指定Skill的完整审核历史记录
+      operationId: getReviewLogs
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewLogListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /api/v1/mgmt/skills/statistics:
+    get:
+      tags:
+        - Review
+      summary: 获取审核统计
+      description: 获取Skill审核相关的统计数据
+      operationId: getReviewStatistics
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: object
+                    properties:
+                      totalPending:
+                        type: integer
+                        description: 待审核总数
+                      totalApproved:
+                        type: integer
+                        description: 已通过总数
+                      totalRejected:
+                        type: integer
+                        description: 已拒绝总数
+                      totalTakedown:
+                        type: integer
+                        description: 已下架总数
+                      todayApproved:
+                        type: integer
+                        description: 今日通过数
+                      todayRejected:
+                        type: integer
+                        description: 今日拒绝数
+                      avgReviewTime:
+                        type: number
+                        description: 平均审核时长（小时）
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      security:
+        - bearerAuth: []
+
+  # ==================== 内部同步接口 ====================
+  /api/v1/mgmt/internal/skills/sync:
+    post:
+      tags:
+        - Internal
+      summary: 接收Skill审核数据
+      description: |
+        供AgentConsole同步Skill数据到审核系统。
+
+        **注意：** 此接口仅供内部服务调用。
+      operationId: syncSkill
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillSyncRequest'
+            example:
+              id: sk_abc123def456
+              name: pdf-processing
+              displayName: PDF Processing
+              description: Extracts text and tables from PDF files
+              developerId: dev_xyz
+              developerName: 张三
+              visibility: 1
+              status: 1
+              license: Apache-2.0
+              compatibility: Requires Python 3.8+
+              allowedTools:
+                - Bash(python:*)
+                - Read
+              metadata:
+                author: example-org
+              version: 1.0.0
+              packageUrl: https://oss.example.com/skills/sk_abc123.zip
+              packageSize: 102400
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - serviceAuth: []
+
+  /api/v1/mgmt/internal/skills/{skillId}/status:
+    get:
+      tags:
+        - Internal
+      summary: 获取Skill审核状态
+      description: 供其他服务查询Skill的审核状态
+      operationId: getSkillStatus
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: object
+                    properties:
+                      skillId:
+                        type: string
+                      status:
+                        type: integer
+                      visibility:
+                        type: integer
+                      reviewerId:
+                        type: string
+                      reviewerName:
+                        type: string
+                      reviewedAt:
+                        type: string
+                        format: date-time
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - serviceAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 管理员访问令牌
+    serviceAuth:
+      type: http
+      scheme: bearer
+      description: 服务间认证令牌
+
+  parameters:
+    skillId:
+      name: skillId
+      in: path
+      required: true
+      description: Skill唯一标识
+      schema:
+        type: string
+        pattern: '^sk_[a-z0-9]{12,32}$'
+      example: sk_abc123def456
+
+  schemas:
+    # ============ 待审核Skill ============
+    PendingSkill:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Skill ID
+        name:
+          type: string
+          description: Skill名称
+        displayName:
+          type: string
+          description: 显示名称
+        description:
+          type: string
+          description: 描述
+        developerId:
+          type: string
+          description: 开发者ID
+        developerName:
+          type: string
+          description: 开发者名称
+        visibility:
+          type: integer
+          enum: [0, 1]
+          description: 可见性
+        status:
+          type: integer
+          description: 状态
+        version:
+          type: string
+          description: 版本号
+        packageSize:
+          type: integer
+          description: 包大小（字节）
+        submittedAt:
+          type: string
+          format: date-time
+          description: 提交时间
+        createdAt:
+          type: string
+          format: date-time
+
+    PendingSkillListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            list:
+              type: array
+              items:
+                $ref: '#/components/schemas/PendingSkill'
+
+    ReviewedSkillListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            list:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  displayName:
+                    type: string
+                  developerName:
+                    type: string
+                  status:
+                    type: integer
+                  reviewerName:
+                    type: string
+                  reviewedAt:
+                    type: string
+                    format: date-time
+
+    TakedownSkillListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            total:
+              type: integer
+            list:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  displayName:
+                    type: string
+                  developerName:
+                    type: string
+                  takedownReason:
+                    type: string
+                  takedownAt:
+                    type: string
+                    format: date-time
+
+    # ============ 审核详情 ============
+    ReviewDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        developerId:
+          type: string
+        developerName:
+          type: string
+        visibility:
+          type: integer
+          enum: [0, 1]
+        status:
+          type: integer
+          enum: [1, 2, 3, 4]
+        license:
+          type: string
+        compatibility:
+          type: string
+        allowedTools:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        version:
+          type: string
+        packageUrl:
+          type: string
+          format: uri
+        packageSize:
+          type: integer
+        submittedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        reviewLogs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewLog'
+
+    ReviewDetailResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          $ref: '#/components/schemas/ReviewDetail'
+
+    # ============ 审核日志 ============
+    ReviewLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        skillId:
+          type: string
+        skillName:
+          type: string
+        action:
+          type: string
+          enum: [submit, approve, reject, takedown, republish, withdraw]
+          description: 操作类型
+        fromStatus:
+          type: integer
+          description: 原状态
+        toStatus:
+          type: integer
+          description: 目标状态
+        operatorId:
+          type: string
+          description: 操作人ID
+        operatorName:
+          type: string
+          description: 操作人名称
+        operatorRole:
+          type: string
+          enum: [developer, admin, system]
+          description: 操作人角色
+        reason:
+          type: string
+          description: 原因（拒绝/下架时）
+        comment:
+          type: string
+          description: 备注
+        createdAt:
+          type: string
+          format: date-time
+
+    ReviewLogListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            total:
+              type: integer
+            list:
+              type: array
+              items:
+                $ref: '#/components/schemas/ReviewLog'
+
+    # ============ 同步请求 ============
+    SkillSyncRequest:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - developerId
+      properties:
+        id:
+          type: string
+          description: Skill ID
+          pattern: '^sk_[a-z0-9]{12,32}$'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$'
+          description: Skill名称
+        displayName:
+          type: string
+          maxLength: 128
+          description: 显示名称
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: 描述
+        developerId:
+          type: string
+          description: 开发者ID
+        developerName:
+          type: string
+          maxLength: 128
+          description: 开发者名称
+        visibility:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: 可见性
+        status:
+          type: integer
+          default: 1
+          description: 状态
+        license:
+          type: string
+          maxLength: 64
+          description: 许可证
+        compatibility:
+          type: string
+          maxLength: 500
+          description: 兼容性要求
+        allowedTools:
+          type: array
+          items:
+            type: string
+          description: 预批准工具列表
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 扩展元数据
+        version:
+          type: string
+          maxLength: 32
+          description: 版本号
+        packageUrl:
+          type: string
+          format: uri
+          maxLength: 512
+          description: 对象存储URL
+        packageSize:
+          type: integer
+          minimum: 0
+          description: 包大小（字节）
+
+    # ============ 通用 ============
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 错误码
+        message:
+          type: string
+          description: 错误信息
+        data:
+          type: object
+          additionalProperties: true
+          description: 额外错误详情
+
+  responses:
+    Success:
+      description: 操作成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 0
+              message:
+                type: string
+                example: success
+
+    Unauthorized:
+      description: 未认证
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 401001
+            message: 未认证，请先登录
+
+    Forbidden:
+      description: 无权限
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 403001
+            message: 无权限访问，需要管理员角色
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 404001
+            message: 资源不存在

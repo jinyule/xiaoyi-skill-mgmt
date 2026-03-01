@@ -1,0 +1,1118 @@
+openapi: 3.0.3
+info:
+  title: AgentConsole API
+  description: |
+    Agent开发者控制台API，提供Skill上传、管理、Agent绑定等功能。
+
+    ## 认证方式
+    所有接口需要在Header中携带Bearer Token:
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    ## 错误码说明
+    - 0: 成功
+    - 400001: 参数错误
+    - 401001: 未认证
+    - 403001: 无权限
+    - 404001: 资源不存在
+    - 100001-100012: Skill业务错误
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api@example.com
+
+servers:
+  - url: https://api.example.com/console
+    description: 生产环境
+  - url: https://api-dev.example.com/console
+    description: 测试环境
+
+tags:
+  - name: Skill
+    description: Skill管理相关接口
+  - name: Binding
+    description: Agent-Skill绑定接口
+  - name: Internal
+    description: 内部同步接口（仅供其他微服务调用）
+
+paths:
+  # ==================== Skill管理接口 ====================
+  /api/v1/console/skills:
+    post:
+      tags:
+        - Skill
+      summary: 上传Skill
+      description: |
+        上传Skill.zip包，系统会自动解析SKILL.md并校验协议规范。
+
+        **文件要求：**
+        - 格式：仅支持.zip
+        - 大小：最大50MB
+        - 必须包含根目录下的SKILL.md文件
+        - 最多100个文件，单文件最大10MB
+      operationId: uploadSkill
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Skill.zip文件
+                name:
+                  type: string
+                  maxLength: 64
+                  pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$'
+                  description: |
+                    Skill名称（可选，默认从SKILL.md解析）
+                    - 1-64字符
+                    - 仅小写字母、数字、连字符
+                    - 不能以连字符开头或结尾
+                    - 不能有连续连字符
+                  example: pdf-processing
+                visibility:
+                  type: integer
+                  enum: [0, 1]
+                  default: 0
+                  description: |
+                    可见性
+                    - 0: 私有（默认）
+                    - 1: 公有
+            encoding:
+              file:
+                contentType: application/zip
+      responses:
+        '200':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillResponse'
+              example:
+                code: 0
+                message: success
+                data:
+                  id: sk_abc123def456
+                  name: pdf-processing
+                  displayName: PDF Processing
+                  description: Extracts text and tables from PDF files
+                  visibility: 0
+                  status: 0
+                  version: 1.0.0
+                  storeSyncStatus: 1
+                  storeSyncedAt: '2026-02-28T10:00:00Z'
+                  createdAt: '2026-02-28T10:00:00Z'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidFile:
+                  summary: 文件格式错误
+                  value:
+                    code: 100004
+                    message: 文件格式错误，仅支持.zip格式
+                fileTooLarge:
+                  summary: 文件过大
+                  value:
+                    code: 100010
+                    message: 文件大小超过限制（最大50MB）
+                parseError:
+                  summary: 解析失败
+                  value:
+                    code: 100005
+                    message: SKILL.md解析失败，YAML格式错误
+                protocolError:
+                  summary: 协议校验失败
+                  value:
+                    code: 100006
+                    message: 协议规范校验失败，name字段格式不符合要求
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      security:
+        - bearerAuth: []
+
+    get:
+      tags:
+        - Skill
+      summary: 获取Skill列表
+      description: 获取当前开发者的Skill列表，支持分页和筛选
+      operationId: listSkills
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: 每页数量
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          description: |
+            状态筛选
+            - 0: 草稿
+            - 1: 待审核
+            - 2: 已发布
+            - 3: 已下架
+            - 4: 已拒绝
+          schema:
+            type: integer
+            enum: [0, 1, 2, 3, 4]
+        - name: visibility
+          in: query
+          description: |
+            可见性筛选
+            - 0: 私有
+            - 1: 公有
+          schema:
+            type: integer
+            enum: [0, 1]
+        - name: keyword
+          in: query
+          description: 关键词搜索（搜索name和description）
+          schema:
+            type: string
+            maxLength: 100
+        - name: sortBy
+          in: query
+          description: 排序字段
+          schema:
+            type: string
+            enum: [createdAt, updatedAt, name]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          description: 排序方向
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - bearerAuth: []
+
+  /api/v1/console/skills/{skillId}:
+    get:
+      tags:
+        - Skill
+      summary: 获取Skill详情
+      description: 获取指定Skill的详细信息，包括文件列表
+      operationId: getSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - Skill
+      summary: 更新Skill元数据
+      description: |
+        更新Skill的元数据信息。
+
+        **注意：**
+        - 仅草稿状态的Skill可以更新
+        - 更新后需要重新提交审核
+      operationId: updateSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  maxLength: 128
+                  description: 显示名称
+                  example: PDF Processing Tool
+                description:
+                  type: string
+                  minLength: 1
+                  maxLength: 1024
+                  description: 描述
+                  example: A powerful PDF processing tool
+                visibility:
+                  type: integer
+                  enum: [0, 1]
+                  description: 可见性
+            example:
+              displayName: PDF Processing Tool
+              description: A powerful PDF processing tool for extracting text and merging documents
+              visibility: 1
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidStatus:
+                  summary: 状态不允许更新
+                  value:
+                    code: 100003
+                    message: Skill状态不允许更新，仅草稿状态可更新
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - Skill
+      summary: 删除Skill
+      description: |
+        删除指定的Skill。
+
+        **注意：**
+        - 仅草稿、已拒绝、已下架状态的Skill可以删除
+        - 已发布或待审核状态需要先下架或撤回
+      operationId: deleteSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          description: 状态不允许删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 100003
+                message: Skill状态不允许删除
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /api/v1/console/skills/{skillId}/submit:
+    post:
+      tags:
+        - Skill
+      summary: 提交审核
+      description: |
+        提交Skill进行上架审核。
+
+        **前提条件：**
+        - Skill状态为草稿、已拒绝或已下架
+        - 已完成协议规范校验
+        - 安全扫描通过
+      operationId: submitSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - visibility
+              properties:
+                visibility:
+                  type: integer
+                  enum: [0, 1]
+                  description: |
+                    上架后的可见性
+                    - 0: 私有（仅自己和绑定的Agent可用）
+                    - 1: 公有（所有用户可见可用）
+                notes:
+                  type: string
+                  maxLength: 500
+                  description: 提交说明（可选）
+            example:
+              visibility: 1
+              notes: 首次发布，这是一个PDF处理工具
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      skillId:
+                        type: string
+                        example: sk_abc123def456
+                      status:
+                        type: integer
+                        description: 新状态（1-待审核）
+                        example: 1
+                      mgmtSyncStatus:
+                        type: integer
+                        description: AgentMgmt同步状态
+                        example: 1
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidStatus:
+                  summary: 状态不允许提交
+                  value:
+                    code: 100003
+                    message: Skill状态不允许提交审核
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /api/v1/console/skills/{skillId}/withdraw:
+    post:
+      tags:
+        - Skill
+      summary: 撤回审核
+      description: 撤回已提交的审核申请，Skill状态恢复为草稿
+      operationId: withdrawSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 200
+                  description: 撤回原因
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          description: 状态不允许撤回
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  # ==================== Agent-Skill绑定接口 ====================
+  /api/v1/console/agents/{agentId}/skills:
+    get:
+      tags:
+        - Binding
+      summary: 获取Agent绑定的Skill列表
+      description: 获取指定Agent已绑定的所有Skill
+      operationId: listAgentSkills
+      parameters:
+        - $ref: '#/components/parameters/agentId'
+        - name: enabled
+          in: query
+          description: 是否启用筛选
+          schema:
+            type: integer
+            enum: [0, 1]
+        - name: sortBy
+          in: query
+          description: 排序字段
+          schema:
+            type: string
+            enum: [priority, createdAt]
+            default: priority
+        - name: sortOrder
+          in: query
+          description: 排序方向
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BindingListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Binding
+      summary: 绑定Skill到Agent
+      description: |
+        将指定Skill绑定到Agent。
+
+        **限制：**
+        - 每个Agent最多绑定20个Skill
+        - 同一Skill不能重复绑定
+        - 只能绑定自己拥有的Skill或公有Skill
+      operationId: bindSkill
+      parameters:
+        - $ref: '#/components/parameters/agentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - skillId
+              properties:
+                skillId:
+                  type: string
+                  description: Skill ID
+                  example: sk_abc123def456
+                priority:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  default: 0
+                  description: 优先级（数值越大优先级越高）
+                enabled:
+                  type: integer
+                  enum: [0, 1]
+                  default: 1
+                  description: 是否启用
+                bindingConfig:
+                  type: object
+                  description: 绑定配置（JSON对象）
+                  additionalProperties: true
+            example:
+              skillId: sk_abc123def456
+              priority: 10
+              enabled: 1
+              bindingConfig:
+                autoActivate: true
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BindingResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                alreadyBound:
+                  summary: 已绑定
+                  value:
+                    code: 100008
+                    message: Skill已绑定到此Agent
+                limitExceeded:
+                  summary: 绑定数量超限
+                  value:
+                    code: 100009
+                    message: Agent绑定Skill数量已达上限（20个）
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /api/v1/console/agents/{agentId}/skills/{skillId}:
+    put:
+      tags:
+        - Binding
+      summary: 更新绑定配置
+      description: 更新Agent与Skill的绑定配置
+      operationId: updateBinding
+      parameters:
+        - $ref: '#/components/parameters/agentId'
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                priority:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  description: 优先级
+                enabled:
+                  type: integer
+                  enum: [0, 1]
+                  description: 是否启用
+                bindingConfig:
+                  type: object
+                  description: 绑定配置
+                  additionalProperties: true
+            example:
+              priority: 20
+              enabled: 1
+              bindingConfig:
+                autoActivate: true
+                timeout: 30
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - Binding
+      summary: 解绑Skill
+      description: 解除Agent与Skill的绑定关系
+      operationId: unbindSkill
+      parameters:
+        - $ref: '#/components/parameters/agentId'
+        - $ref: '#/components/parameters/skillId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  # ==================== 内部同步接口 ====================
+  /api/v1/console/internal/skills/{skillId}/sync-callback:
+    post:
+      tags:
+        - Internal
+      summary: 同步状态回调
+      description: |
+        供SkillStore/AgentMgmt回调通知同步结果。
+
+        **注意：** 此接口仅供内部服务调用，需要进行服务间认证。
+      operationId: syncCallback
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - target
+                - status
+              properties:
+                target:
+                  type: string
+                  enum: [store, mgmt]
+                  description: 同步目标服务
+                status:
+                  type: string
+                  enum: [success, failed]
+                  description: 同步状态
+                syncedAt:
+                  type: string
+                  format: date-time
+                  description: 同步时间
+                errorMessage:
+                  type: string
+                  description: 错误信息（失败时必填）
+            example:
+              target: store
+              status: success
+              syncedAt: '2026-02-28T10:00:00Z'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - serviceAuth: []
+
+  /api/v1/console/internal/agents/{agentId}/skill-ids:
+    get:
+      tags:
+        - Internal
+      summary: 获取Agent绑定的Skill ID列表
+      description: |
+        供Runtime获取Agent绑定的Skill ID列表。
+
+        **注意：** 此接口仅供内部服务调用。
+      operationId: getAgentSkillIds
+      parameters:
+        - $ref: '#/components/parameters/agentId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: object
+                    properties:
+                      agentId:
+                        type: string
+                      skillIds:
+                        type: array
+                        items:
+                          type: string
+                      enabledCount:
+                        type: integer
+                        description: 启用的Skill数量
+              example:
+                code: 0
+                data:
+                  agentId: agent_xxx
+                  skillIds:
+                    - sk_abc123
+                    - sk_def456
+                  enabledCount: 2
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - serviceAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 用户访问令牌
+    serviceAuth:
+      type: http
+      scheme: bearer
+      description: 服务间认证令牌
+
+  parameters:
+    skillId:
+      name: skillId
+      in: path
+      required: true
+      description: Skill唯一标识（32位UUID，以sk_前缀）
+      schema:
+        type: string
+        pattern: '^sk_[a-z0-9]{12,32}$'
+      example: sk_abc123def456
+
+    agentId:
+      name: agentId
+      in: path
+      required: true
+      description: Agent唯一标识
+      schema:
+        type: string
+        pattern: '^agent_[a-z0-9]{12,32}$'
+      example: agent_xyz789
+
+  schemas:
+    # ============ Skill相关 ============
+    Skill:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Skill唯一ID
+          example: sk_abc123def456
+        name:
+          type: string
+          maxLength: 64
+          description: Skill名称（协议name字段）
+          example: pdf-processing
+        displayName:
+          type: string
+          maxLength: 128
+          description: 显示名称
+          example: PDF Processing Tool
+        description:
+          type: string
+          maxLength: 1024
+          description: 描述
+          example: Extracts text and tables from PDF files
+        developerId:
+          type: string
+          description: 开发者ID
+        visibility:
+          type: integer
+          enum: [0, 1]
+          description: |
+            可见性
+            - 0: 私有
+            - 1: 公有
+        status:
+          type: integer
+          enum: [0, 1, 2, 3, 4]
+          description: |
+            状态
+            - 0: 草稿
+            - 1: 待审核
+            - 2: 已发布
+            - 3: 已下架
+            - 4: 已拒绝
+        version:
+          type: string
+          description: 版本号
+          example: 1.0.0
+        installCount:
+          type: integer
+          description: 安装次数
+          example: 100
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+
+    SkillDetail:
+      allOf:
+        - $ref: '#/components/schemas/Skill'
+        - type: object
+          properties:
+            license:
+              type: string
+              maxLength: 64
+              description: 许可证
+              example: Apache-2.0
+            compatibility:
+              type: string
+              maxLength: 500
+              description: 兼容性要求
+            allowedTools:
+              type: array
+              description: 预批准工具列表
+              items:
+                type: string
+              example:
+                - Bash(python:*)
+                - Read
+                - Write
+            metadata:
+              type: object
+              description: 扩展元数据
+              additionalProperties: true
+              example:
+                author: example-org
+            packageUrl:
+              type: string
+              format: uri
+              description: 对象存储URL
+            packageSize:
+              type: integer
+              description: 包大小（字节）
+              example: 102400
+            storeSyncStatus:
+              type: integer
+              enum: [0, 1, 2]
+              description: |
+                SkillStore同步状态
+                - 0: 未同步
+                - 1: 已同步
+                - 2: 同步失败
+            storeSyncedAt:
+              type: string
+              format: date-time
+              description: SkillStore同步时间
+            mgmtSyncStatus:
+              type: integer
+              enum: [0, 1, 2]
+              description: |
+                AgentMgmt同步状态
+                - 0: 未同步
+                - 1: 已同步
+                - 2: 同步失败
+            mgmtSyncedAt:
+              type: string
+              format: date-time
+              description: AgentMgmt同步时间
+            files:
+              type: array
+              description: 文件列表
+              items:
+                type: object
+                properties:
+                  filePath:
+                    type: string
+                    description: 文件相对路径
+                  fileType:
+                    type: string
+                    enum: [skill_md, script, reference, asset]
+                    description: 文件类型
+                  fileSize:
+                    type: integer
+                    description: 文件大小（字节）
+
+    SkillResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: '#/components/schemas/Skill'
+
+    SkillListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: 总数量
+              example: 100
+            page:
+              type: integer
+              description: 当前页码
+              example: 1
+            pageSize:
+              type: integer
+              description: 每页数量
+              example: 20
+            list:
+              type: array
+              items:
+                $ref: '#/components/schemas/Skill'
+
+    SkillDetailResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          $ref: '#/components/schemas/SkillDetail'
+
+    # ============ 绑定相关 ============
+    Binding:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 绑定关系ID
+        skillId:
+          type: string
+          description: Skill ID
+        skillName:
+          type: string
+          description: Skill名称
+        skillVersion:
+          type: string
+          description: 绑定的Skill版本
+        priority:
+          type: integer
+          description: 优先级
+          minimum: 0
+          maximum: 100
+        enabled:
+          type: integer
+          enum: [0, 1]
+          description: 是否启用
+        bindingConfig:
+          type: object
+          description: 绑定配置
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+
+    BindingListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            total:
+              type: integer
+            list:
+              type: array
+              items:
+                $ref: '#/components/schemas/Binding'
+
+    BindingResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              description: 绑定关系ID
+            agentId:
+              type: string
+            skillId:
+              type: string
+            skillName:
+              type: string
+
+    # ============ 通用 ============
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 错误码
+        message:
+          type: string
+          description: 错误信息
+        data:
+          type: object
+          description: 额外错误详情
+          additionalProperties: true
+
+  responses:
+    Success:
+      description: 操作成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 0
+              message:
+                type: string
+                example: success
+
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 400001
+            message: 参数错误
+
+    Unauthorized:
+      description: 未认证
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 401001
+            message: 未认证，请先登录
+
+    Forbidden:
+      description: 无权限
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 403001
+            message: 无权限访问此资源
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 404001
+            message: 资源不存在

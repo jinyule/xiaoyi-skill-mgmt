@@ -1,0 +1,1081 @@
+openapi: 3.0.3
+info:
+  title: SkillStore API
+  description: |
+    Skill商店API，提供Skill浏览、搜索、下载等功能。
+
+    ## 公开接口
+    大部分接口为公开接口，无需认证即可访问。
+    部分内部接口需要服务间认证。
+
+    ## 错误码说明
+    - 0: 成功
+    - 400001: 参数错误
+    - 404001: 资源不存在
+    - 100001: Skill不存在
+    - 100002: Skill不可访问（私有或已下架）
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api@example.com
+
+servers:
+  - url: https://api.example.com/store
+    description: 生产环境
+  - url: https://api-dev.example.com/store
+    description: 测试环境
+
+tags:
+  - name: Public
+    description: 公开接口（无需认证）
+  - name: Internal
+    description: 内部接口（仅供其他微服务调用）
+
+paths:
+  # ==================== 公开接口 ====================
+  /api/v1/store/skills:
+    get:
+      tags:
+        - Public
+      summary: 浏览公有Skill列表
+      description: 获取已发布的公有Skill列表，支持分页、分类筛选和排序
+      operationId: listPublicSkills
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: 每页数量
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: category
+          in: query
+          description: 分类筛选
+          schema:
+            type: string
+            enum:
+              - document_processing
+              - data_analysis
+              - web_automation
+              - code_generation
+              - image_processing
+              - communication
+              - productivity
+              - other
+        - name: tag
+          in: query
+          description: 标签筛选
+          schema:
+            type: string
+        - name: keyword
+          in: query
+          description: 关键词搜索
+          schema:
+            type: string
+            maxLength: 100
+        - name: sortBy
+          in: query
+          description: 排序字段
+          schema:
+            type: string
+            enum: [installCount, createdAt, updatedAt, name]
+            default: installCount
+        - name: sortOrder
+          in: query
+          description: 排序方向
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: license
+          in: query
+          description: 许可证筛选
+          schema:
+            type: string
+            enum:
+              - Apache-2.0
+              - MIT
+              - GPL-3.0
+              - BSD-3-Clause
+              - proprietary
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicSkillListResponse'
+              example:
+                code: 0
+                data:
+                  total: 100
+                  page: 1
+                  pageSize: 20
+                  list:
+                    - id: sk_abc123
+                      name: pdf-processing
+                      displayName: PDF Processing
+                      description: Extracts text and tables from PDF files
+                      developerId: dev_xyz
+                      developerName: 张三
+                      license: Apache-2.0
+                      version: 1.0.0
+                      installCount: 1000
+                      category: document_processing
+                      tags:
+                        - pdf
+                        - document
+                      createdAt: '2026-02-28T10:00:00Z'
+
+  /api/v1/store/skills/featured:
+    get:
+      tags:
+        - Public
+      summary: 获取精选Skill
+      description: 获取精选推荐的Skill列表
+      operationId: getFeaturedSkills
+      parameters:
+        - name: limit
+          in: query
+          description: 返回数量
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PublicSkill'
+
+  /api/v1/store/skills/categories:
+    get:
+      tags:
+        - Public
+      summary: 获取Skill分类列表
+      description: 获取所有可用的Skill分类及其统计
+      operationId: getCategories
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        displayName:
+                          type: string
+                        skillCount:
+                          type: integer
+                        icon:
+                          type: string
+
+  /api/v1/store/skills/{skillId}:
+    get:
+      tags:
+        - Public
+      summary: 获取Skill详情
+      description: 获取指定Skill的详细信息
+      operationId: getPublicSkill
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicSkillDetailResponse'
+        '404':
+          description: Skill不存在或不公开
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  summary: Skill不存在
+                  value:
+                    code: 100001
+                    message: Skill不存在
+                notPublic:
+                  summary: Skill不公开
+                  value:
+                    code: 100002
+                    message: Skill不存在或不公开
+
+  /api/v1/store/skills/search:
+    get:
+      tags:
+        - Public
+      summary: 搜索Skill
+      description: 通过关键词搜索Skill，支持全文搜索
+      operationId: searchSkills
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: 搜索关键词
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [relevance, installCount, createdAt]
+            default: relevance
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicSkillListResponse'
+
+  /api/v1/store/skills/{skillId}/download-url:
+    get:
+      tags:
+        - Public
+      summary: 获取Skill下载URL
+      description: |
+        返回带签名的临时下载URL，用于下载Skill包。
+
+        **URL有效期：**
+        - 默认1小时
+        - 最短60秒
+        - 最长24小时
+
+        **权限要求：**
+        - 公有Skill：无需认证
+        - 私有Skill：需要认证且为所有者或绑定的Agent
+      operationId: getDownloadUrl
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+        - name: expiresIn
+          in: query
+          description: URL有效期（秒）
+          schema:
+            type: integer
+            minimum: 60
+            maximum: 86400
+            default: 3600
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: object
+                    properties:
+                      skillId:
+                        type: string
+                        example: sk_abc123
+                      downloadUrl:
+                        type: string
+                        format: uri
+                        description: 带签名的临时下载URL
+                        example: https://oss.example.com/skills/sk_abc123.zip?OSSAccessKeyId=xxx&Expires=xxx&Signature=xxx
+                      expiresAt:
+                        type: string
+                        format: date-time
+                        description: URL过期时间
+                      packageSize:
+                        type: integer
+                        description: 包大小（字节）
+                      checksum:
+                        type: string
+                        description: 文件校验和（SHA256）
+        '404':
+          description: Skill不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 无权限下载
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 403001
+                message: 无权限下载此Skill
+
+  /api/v1/store/skills/{skillId}/readme:
+    get:
+      tags:
+        - Public
+      summary: 获取Skill README内容
+      description: 获取Skill的SKILL.md内容（Markdown格式）
+      operationId: getSkillReadme
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: object
+                    properties:
+                      skillId:
+                        type: string
+                      content:
+                        type: string
+                        description: Markdown内容
+                      frontmatter:
+                        type: object
+                        description: YAML前置配置
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/store/developers/{developerId}/skills:
+    get:
+      tags:
+        - Public
+      summary: 获取开发者的公开Skill列表
+      description: 获取指定开发者发布的所有公有Skill
+      operationId: getDeveloperSkills
+      parameters:
+        - name: developerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicSkillListResponse'
+
+  # ==================== 内部接口 ====================
+  /api/v1/store/internal/skills/sync:
+    post:
+      tags:
+        - Internal
+      summary: 接收Skill同步数据
+      description: |
+        供AgentConsole同步Skill元数据到Store。
+
+        **同步时机：**
+        - Skill导入成功后
+        - Skill元数据更新后
+
+        **注意：** 此接口仅供内部服务调用。
+      operationId: syncSkill
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillSyncRequest'
+            example:
+              id: sk_abc123def456
+              name: pdf-processing
+              displayName: PDF Processing
+              description: Extracts text and tables from PDF files
+              developerId: dev_xyz
+              developerName: 张三
+              visibility: 0
+              status: 0
+              license: Apache-2.0
+              compatibility: Requires Python 3.8+
+              allowedTools:
+                - Bash(python:*)
+                - Read
+              metadata:
+                author: example-org
+              version: 1.0.0
+              packageUrl: https://oss.example.com/skills/sk_abc123.zip
+              packageSize: 102400
+              category: document_processing
+              tags:
+                - pdf
+                - document
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - serviceAuth: []
+
+  /api/v1/store/internal/skills/batch-sync:
+    post:
+      tags:
+        - Internal
+      summary: 批量同步Skill数据
+      description: 批量同步多个Skill的数据
+      operationId: batchSyncSkills
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - skills
+              properties:
+                skills:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    $ref: '#/components/schemas/SkillSyncRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: object
+                    properties:
+                      successCount:
+                        type: integer
+                      failedCount:
+                        type: integer
+                      errors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            skillId:
+                              type: string
+                            error:
+                              type: string
+      security:
+        - serviceAuth: []
+
+  /api/v1/store/internal/skills/{skillId}/status:
+    put:
+      tags:
+        - Internal
+      summary: 更新Skill状态
+      description: |
+        供AgentMgmt更新审核状态。
+
+        **调用时机：**
+        - 审核通过且公开时更新为已发布
+        - 下架时更新为已下架
+      operationId: updateSkillStatus
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: integer
+                  enum: [1, 2, 3]
+                  description: |
+                    状态
+                    - 1: 已发布
+                    - 2: 已下架
+                    - 3: 待审核（重新提交）
+                visibility:
+                  type: integer
+                  enum: [0, 1]
+                  description: 可见性
+                reviewedAt:
+                  type: string
+                  format: date-time
+                  description: 审核时间
+            example:
+              status: 1
+              visibility: 1
+              reviewedAt: '2026-02-28T10:00:00Z'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - serviceAuth: []
+
+  /api/v1/store/internal/skills/query-by-ids:
+    post:
+      tags:
+        - Internal
+      summary: 批量查询Skill详情
+      description: |
+        供Runtime批量获取Skill信息。
+
+        **返回内容：**
+        - Skill基本信息
+        - 预批准工具列表
+        - 下载URL
+
+        **注意：**
+        - 包含私有Skill（如果请求者是所有者或绑定的Agent）
+        - 最多查询50个Skill
+      operationId: querySkillsByIds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - skillIds
+              properties:
+                skillIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: string
+                    pattern: '^sk_[a-z0-9]{12,32}$'
+                  description: Skill ID列表
+                requesterId:
+                  type: string
+                  description: 请求者ID（用于权限判断）
+                requesterType:
+                  type: string
+                  enum: [runtime, developer, agent]
+                  description: 请求者类型
+                includeDownloadUrl:
+                  type: boolean
+                  default: false
+                  description: 是否包含下载URL
+            example:
+              skillIds:
+                - sk_abc123
+                - sk_def456
+              requesterId: agent_xyz
+              requesterType: agent
+              includeDownloadUrl: true
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SkillRuntimeInfo'
+              example:
+                code: 0
+                data:
+                  - id: sk_abc123
+                    name: pdf-processing
+                    displayName: PDF Processing
+                    description: Extracts text from PDF files
+                    version: 1.0.0
+                    packageUrl: https://oss.example.com/skills/sk_abc123.zip
+                    allowedTools:
+                      - Bash(python:*)
+                      - Read
+                    downloadUrl: https://oss.example.com/skills/sk_abc123.zip?signature=xxx
+      security:
+        - serviceAuth: []
+
+  /api/v1/store/internal/skills/{skillId}/access-check:
+    post:
+      tags:
+        - Internal
+      summary: 检查Skill访问权限
+      description: 检查指定用户或Agent是否有权限访问Skill
+      operationId: checkSkillAccess
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - requesterId
+                - requesterType
+              properties:
+                requesterId:
+                  type: string
+                  description: 请求者ID
+                requesterType:
+                  type: string
+                  enum: [developer, agent, runtime]
+                  description: 请求者类型
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  data:
+                    type: object
+                    properties:
+                      hasAccess:
+                        type: boolean
+                        description: 是否有访问权限
+                      reason:
+                        type: string
+                        description: 无权限原因
+      security:
+        - serviceAuth: []
+
+  /api/v1/store/internal/skills/{skillId}/increment-install:
+    post:
+      tags:
+        - Internal
+      summary: 增加安装次数
+      description: 增加Skill的安装/下载次数
+      operationId: incrementInstallCount
+      parameters:
+        - $ref: '#/components/parameters/skillId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                  description: 增加次数
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+      security:
+        - serviceAuth: []
+
+components:
+  securitySchemes:
+    serviceAuth:
+      type: http
+      scheme: bearer
+      description: 服务间认证令牌
+
+  parameters:
+    skillId:
+      name: skillId
+      in: path
+      required: true
+      description: Skill唯一标识
+      schema:
+        type: string
+        pattern: '^sk_[a-z0-9]{12,32}$'
+      example: sk_abc123def456
+
+  schemas:
+    # ============ 公开Skill信息 ============
+    PublicSkill:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Skill ID
+          example: sk_abc123
+        name:
+          type: string
+          maxLength: 64
+          description: Skill名称
+          example: pdf-processing
+        displayName:
+          type: string
+          maxLength: 128
+          description: 显示名称
+          example: PDF Processing
+        description:
+          type: string
+          maxLength: 1024
+          description: 描述
+        developerId:
+          type: string
+          description: 开发者ID
+        developerName:
+          type: string
+          description: 开发者名称
+        license:
+          type: string
+          description: 许可证
+          example: Apache-2.0
+        version:
+          type: string
+          description: 版本号
+          example: 1.0.0
+        installCount:
+          type: integer
+          description: 安装次数
+          example: 1000
+        category:
+          type: string
+          description: 分类
+          example: document_processing
+        tags:
+          type: array
+          description: 标签
+          items:
+            type: string
+          example:
+            - pdf
+            - document
+        icon:
+          type: string
+          format: uri
+          description: 图标URL
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PublicSkillDetail:
+      allOf:
+        - $ref: '#/components/schemas/PublicSkill'
+        - type: object
+          properties:
+            compatibility:
+              type: string
+              maxLength: 500
+              description: 兼容性要求
+            allowedTools:
+              type: array
+              description: 预批准工具列表
+              items:
+                type: string
+              example:
+                - Bash(python:*)
+                - Read
+            metadata:
+              type: object
+              description: 扩展元数据
+              additionalProperties: true
+            packageSize:
+              type: integer
+              description: 包大小（字节）
+            repository:
+              type: string
+              format: uri
+              description: 代码仓库URL
+            homepage:
+              type: string
+              format: uri
+              description: 主页URL
+            documentation:
+              type: string
+              format: uri
+              description: 文档URL
+
+    PublicSkillListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: 总数量
+            page:
+              type: integer
+              description: 当前页码
+            pageSize:
+              type: integer
+              description: 每页数量
+            hasMore:
+              type: boolean
+              description: 是否有更多数据
+            list:
+              type: array
+              items:
+                $ref: '#/components/schemas/PublicSkill'
+
+    PublicSkillDetailResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          $ref: '#/components/schemas/PublicSkillDetail'
+
+    # ============ Runtime信息 ============
+    SkillRuntimeInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Skill ID
+        name:
+          type: string
+          description: Skill名称
+        displayName:
+          type: string
+          description: 显示名称
+        description:
+          type: string
+          description: 描述
+        version:
+          type: string
+          description: 版本号
+        packageUrl:
+          type: string
+          format: uri
+          description: 对象存储URL
+        packageSize:
+          type: integer
+          description: 包大小
+        checksum:
+          type: string
+          description: 文件校验和
+        allowedTools:
+          type: array
+          items:
+            type: string
+          description: 预批准工具列表
+        compatibility:
+          type: string
+          description: 兼容性要求
+        downloadUrl:
+          type: string
+          format: uri
+          description: 带签名的临时下载URL（仅当includeDownloadUrl=true时返回）
+        downloadExpiresAt:
+          type: string
+          format: date-time
+          description: 下载URL过期时间
+
+    # ============ 同步请求 ============
+    SkillSyncRequest:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - developerId
+      properties:
+        id:
+          type: string
+          description: Skill ID
+          pattern: '^sk_[a-z0-9]{12,32}$'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$'
+          description: Skill名称
+        displayName:
+          type: string
+          maxLength: 128
+          description: 显示名称
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: 描述
+        developerId:
+          type: string
+          description: 开发者ID
+        developerName:
+          type: string
+          maxLength: 128
+          description: 开发者名称
+        visibility:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: |
+            可见性
+            - 0: 私有
+            - 1: 公有
+        status:
+          type: integer
+          default: 0
+          description: |
+            状态
+            - 0: 未发布
+            - 1: 已发布
+            - 2: 已下架
+        license:
+          type: string
+          maxLength: 64
+          description: 许可证
+        compatibility:
+          type: string
+          maxLength: 500
+          description: 兼容性要求
+        allowedTools:
+          type: array
+          items:
+            type: string
+          description: 预批准工具列表
+        metadata:
+          type: object
+          additionalProperties: true
+          description: 扩展元数据
+        version:
+          type: string
+          maxLength: 32
+          description: 版本号
+        packageUrl:
+          type: string
+          format: uri
+          maxLength: 512
+          description: 对象存储URL
+        packageSize:
+          type: integer
+          minimum: 0
+          description: 包大小（字节）
+        category:
+          type: string
+          description: 分类
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 32
+          maxItems: 10
+          description: 标签列表
+        icon:
+          type: string
+          format: uri
+          description: 图标URL
+        repository:
+          type: string
+          format: uri
+          description: 代码仓库URL
+        homepage:
+          type: string
+          format: uri
+          description: 主页URL
+
+    # ============ 通用 ============
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 错误码
+        message:
+          type: string
+          description: 错误信息
+        data:
+          type: object
+          additionalProperties: true
+          description: 额外错误详情
+
+  responses:
+    Success:
+      description: 操作成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 0
+              message:
+                type: string
+                example: success
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 100001
+            message: Skill不存在
