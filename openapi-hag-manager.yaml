@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: AgentMgmt API
+  title: HAGManager API
   description: |
-    Agent管理后台API，提供Skill审核、下架等管理功能。
+    HAGManager管理后台API，提供Skill审核、下架等管理功能。
 
     ## 认证方式
     所有接口需要在Header中携带Bearer Token:
@@ -35,7 +35,7 @@ tags:
   - name: Review
     description: 审核管理接口
   - name: Internal
-    description: 内部同步接口（仅供AgentConsole调用）
+    description: 内部同步接口（仅供AbilityConsole调用）
 
 paths:
   # ==================== 审核管理接口 ====================
@@ -234,9 +234,9 @@ paths:
         审核通过指定的Skill。
 
         **处理流程：**
-        1. 更新AgentMgmt中的审核状态为已通过
+        1. 更新HAGManager中的审核状态为已通过
         2. 若Skill为公有，更新SkillStore状态为已发布
-        3. 回调通知AgentConsole更新状态
+        3. 回调通知AbilityConsole更新状态
       operationId: approveSkill
       parameters:
         - $ref: '#/components/parameters/skillId'
@@ -376,9 +376,9 @@ paths:
         下架已发布的Skill。
 
         **处理流程：**
-        1. 更新AgentMgmt中的状态为已下架
+        1. 更新HAGManager中的状态为已下架
         2. 更新SkillStore状态为已下架
-        3. 回调通知AgentConsole更新状态
+        3. 回调通知AbilityConsole更新状态
       operationId: takedownSkill
       parameters:
         - $ref: '#/components/parameters/skillId'
@@ -580,7 +580,7 @@ paths:
         - Internal
       summary: 接收Skill审核数据
       description: |
-        供AgentConsole同步Skill数据到审核系统。
+        供AbilityConsole同步Skill数据到审核系统。
 
         **注意：** 此接口仅供内部服务调用。
       operationId: syncSkill

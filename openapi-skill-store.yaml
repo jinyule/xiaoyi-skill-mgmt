@@ -426,7 +426,7 @@ paths:
         - Internal
       summary: 接收Skill同步数据
       description: |
-        供AgentConsole同步Skill元数据到Store。
+        供AbilityConsole同步Skill元数据到Store。
 
         **同步时机：**
         - Skill导入成功后
@@ -533,7 +533,7 @@ paths:
         - Internal
       summary: 更新Skill状态
       description: |
-        供AgentMgmt更新审核状态。
+        供HAGManager更新审核状态。
 
         **调用时机：**
         - 审核通过且公开时更新为已发布

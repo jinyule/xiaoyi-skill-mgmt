@@ -12,12 +12,12 @@
 graph TB
     subgraph "开发者侧"
         Dev[开发者]
-        AC[AgentConsole<br/>开发者IDE]
+        AC[AbilityConsole<br/>开发者IDE]
     end
 
     subgraph "管理侧"
         Admin[管理员]
-        AM[AgentMgmt<br/>管理后台]
+        AM[HAGManager<br/>管理后台]
     end
 
     subgraph "运行时"
@@ -56,8 +56,8 @@ graph TB
 #### 1.2.2 服务依赖关系图
 ```mermaid
 graph LR
-    AC[AgentConsole] -->|导入同步| SS[SkillStore]
-    AC -->|提交审核| AM[AgentMgmt]
+    AC[AbilityConsole] -->|导入同步| SS[SkillStore]
+    AC -->|提交审核| AM[HAGManager]
     AM -->|审核通过更新| SS
     RT[Runtime] -->|获取绑定| AC
     RT -->|获取Skill| SS
@@ -69,19 +69,19 @@ graph LR
 ```
 
 ### 1.3 核心需求
-1. 开发者上传Skill.zip到AgentConsole，默认私有
+1. 开发者上传Skill.zip到AbilityConsole，默认私有
 2. 导入后同步元数据到SkillStore
-3. 提交审核时同步到AgentMgmt
+3. 提交审核时同步到HAGManager
 4. 审核通过且公开时更新SkillStore状态
-5. Skill与Agent多对多关系，按ID绑定，绑定关系存储在AgentConsole
+5. Skill与Agent多对多关系，按ID绑定，绑定关系存储在AbilityConsole
 6. 兼容agentskills.io生态
 7. Runtime从SkillStore获取签名临时URL下载Skill
 
 ### 1.4 服务间调用关系
 ```
-AgentConsole → SkillStore: 导入成功后同步Skill元数据
-AgentConsole → AgentMgmt: 提交审核时同步Skill数据
-AgentMgmt → SkillStore: 审核通过且公开时更新状态
+AbilityConsole → SkillStore: 导入成功后同步Skill元数据
+AbilityConsole → HAGManager: 提交审核时同步Skill数据
+HAGManager → SkillStore: 审核通过且公开时更新状态
 Runtime → SkillStore: 查询Skill信息、获取下载URL
 ```
 
@@ -120,11 +120,11 @@ Discovery → Load metadata → Match → Activate → Execute
 
 ## 三、数据库设计（分微服务）
 
-### 3.1 AgentConsole数据库
+### 3.1 AbilityConsole数据库
 
 #### 3.1.1 Skill主表
 ```sql
-CREATE TABLE ac_skill (
+CREATE TABLE ab_skill (
     id VARCHAR(32) PRIMARY KEY COMMENT 'Skill唯一ID（UUID）',
     name VARCHAR(64) NOT NULL COMMENT 'Skill名称(协议name字段)',
     display_name VARCHAR(128) COMMENT '显示名称',
@@ -143,8 +143,8 @@ CREATE TABLE ac_skill (
     package_size BIGINT COMMENT '包大小(bytes)',
     store_sync_status TINYINT DEFAULT 0 COMMENT 'SkillStore同步状态: 0-未同步 1-已同步 2-同步失败',
     store_synced_at DATETIME COMMENT 'SkillStore同步时间',
-    mgmt_sync_status TINYINT DEFAULT 0 COMMENT 'AgentMgmt同步状态: 0-未同步 1-已同步 2-同步失败',
-    mgmt_synced_at DATETIME COMMENT 'AgentMgmt同步时间',
+    mgmt_sync_status TINYINT DEFAULT 0 COMMENT 'HAGManager同步状态: 0-未同步 1-已同步 2-同步失败',
+    mgmt_synced_at DATETIME COMMENT 'HAGManager同步时间',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at DATETIME COMMENT '软删除时间',
@@ -157,7 +157,7 @@ CREATE TABLE ac_skill (
 
 #### 3.1.2 Skill文件表
 ```sql
-CREATE TABLE ac_skill_file (
+CREATE TABLE ab_skill_file (
     id VARCHAR(32) PRIMARY KEY,
     skill_id VARCHAR(32) NOT NULL COMMENT 'Skill ID',
     file_path VARCHAR(256) NOT NULL COMMENT '文件相对路径',
@@ -173,7 +173,7 @@ CREATE TABLE ac_skill_file (
 
 #### 3.1.3 Agent-Skill绑定表
 ```sql
-CREATE TABLE ac_agent_skill_binding (
+CREATE TABLE ab_agent_skill_binding (
     id VARCHAR(32) PRIMARY KEY,
     agent_id VARCHAR(32) NOT NULL COMMENT 'Agent ID',
     skill_id VARCHAR(32) NOT NULL COMMENT 'Skill ID',
@@ -192,11 +192,11 @@ CREATE TABLE ac_agent_skill_binding (
 
 ---
 
-### 3.2 AgentMgmt数据库
+### 3.2 HAGManager数据库
 
 #### 3.2.1 Skill审核主表
 ```sql
-CREATE TABLE am_skill_review (
+CREATE TABLE hm_skill_review (
     id VARCHAR(32) PRIMARY KEY COMMENT '与Console的skill.id一致',
     name VARCHAR(64) NOT NULL COMMENT 'Skill名称',
     display_name VARCHAR(128) COMMENT '显示名称',
@@ -226,7 +226,7 @@ CREATE TABLE am_skill_review (
 
 #### 3.2.2 审核日志表
 ```sql
-CREATE TABLE am_skill_review_log (
+CREATE TABLE hm_skill_review_log (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     skill_id VARCHAR(32) NOT NULL COMMENT 'Skill ID',
     skill_name VARCHAR(64) COMMENT 'Skill名称',
@@ -298,15 +298,15 @@ CREATE TABLE ss_skill_download_log (
 
 | 数据流向 | 同步时机 | 同步内容 | 同步字段 |
 |---------|---------|---------|---------|
-| AgentConsole → SkillStore | Skill导入成功后 | 元数据+URL | id, name, display_name, description, developer_id, visibility, status, license, compatibility, allowed_tools, metadata_json, version, package_url, package_size |
-| AgentConsole → AgentMgmt | 提交审核时 | 元数据+URL | id, name, display_name, description, developer_id, developer_name, visibility, status, license, compatibility, allowed_tools, metadata_json, version, package_url, package_size |
-| AgentMgmt → SkillStore | 审核通过且公开时 | 状态更新 | id, status, visibility, reviewer_id, reviewer_name, reviewed_at |
+| AbilityConsole → SkillStore | Skill导入成功后 | 元数据+URL | id, name, display_name, description, developer_id, visibility, status, license, compatibility, allowed_tools, metadata_json, version, package_url, package_size |
+| AbilityConsole → HAGManager | 提交审核时 | 元数据+URL | id, name, display_name, description, developer_id, developer_name, visibility, status, license, compatibility, allowed_tools, metadata_json, version, package_url, package_size |
+| HAGManager → SkillStore | 审核通过且公开时 | 状态更新 | id, status, visibility, reviewer_id, reviewer_name, reviewed_at |
 
 ---
 
 ## 四、API接口详细设计
 
-### 4.1 AgentConsole接口
+### 4.1 AbilityConsole接口
 
 #### 4.1.1 Skill管理接口
 
@@ -548,7 +548,7 @@ Response 200:
 }
 ```
 
-#### 4.1.3 内部同步接口（供SkillStore/AgentMgmt回调）
+#### 4.1.3 内部同步接口（供SkillStore/HAGManager回调）
 
 **同步状态更新回调**
 ```
@@ -571,7 +571,7 @@ Response 200:
 
 ---
 
-### 4.2 AgentMgmt接口
+### 4.2 HAGManager接口
 
 #### 4.2.1 审核管理接口
 
@@ -729,7 +729,7 @@ Response 200:
 }
 ```
 
-#### 4.2.2 内部接口（供AgentConsole调用）
+#### 4.2.2 内部接口（供AbilityConsole调用）
 
 **接收Skill审核数据**
 ```
@@ -864,7 +864,7 @@ Response 200:
 }
 ```
 
-#### 4.3.2 内部接口（供AgentConsole/AgentMgmt/Runtime调用）
+#### 4.3.2 内部接口（供AbilityConsole/HAGManager/Runtime调用）
 
 **接收Skill同步数据**
 ```
@@ -896,7 +896,7 @@ Response 200:
 }
 ```
 
-**更新Skill状态（供AgentMgmt调用）**
+**更新Skill状态（供HAGManager调用）**
 ```
 PUT /api/v1/store/internal/skills/{skillId}/status
 
@@ -948,7 +948,7 @@ Response 200:
 #### 5.1.1 时序图（ASCII）
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Developer  │     │AgentConsole │     │  SkillStore │     │     OBS     │
+│  Developer  │     │AbilityConsole│     │  SkillStore │     │     OBS     │
 └──────┬──────┘     └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
        │                   │                   │                   │
        │  1. 上传Skill.zip │                   │                   │
@@ -984,7 +984,7 @@ Response 200:
 sequenceDiagram
     autonumber
     participant D as Developer
-    participant AC as AgentConsole
+    participant AC as AbilityConsole
     participant SS as SkillStore
     participant OBS as 对象存储
 
@@ -1017,7 +1017,7 @@ sequenceDiagram
 #### 5.2.1 时序图（ASCII）
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Developer  │     │AgentConsole │     │  AgentMgmt  │     │  SkillStore │
+│  Developer  │     │AbilityConsole│     │  HAGManager │     │  SkillStore │
 └──────┬──────┘     └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
        │                   │                   │                   │
        │  1. 提交审核      │                   │                   │
@@ -1025,7 +1025,7 @@ sequenceDiagram
        │                   │                   │                   │
        │                   │  2. 更新本地状态  │                   │
        │                   │                   │                   │
-       │                   │  3. 同步到AgentMgmt                   │
+       │                   │  3. 同步到HAGManager                   │
        │                   │──────────────────▶│                   │
        │                   │  POST /internal/skills/sync           │
        │                   │                   │                   │
@@ -1044,8 +1044,8 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     participant D as Developer
-    participant AC as AgentConsole
-    participant AM as AgentMgmt
+    participant AC as AbilityConsole
+    participant AM as HAGManager
 
     D->>AC: POST /skills/{id}/submit
     activate AC
@@ -1070,7 +1070,7 @@ sequenceDiagram
 #### 5.3.1 时序图（ASCII）
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Admin     │     │  AgentMgmt  │     │ AgentConsole│     │  SkillStore │
+│   Admin     │     │  HAGManager │     │AbilityConsole│     │  SkillStore │
 └──────┬──────┘     └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
        │                   │                   │                   │
        │  1. 审核通过      │                   │                   │
@@ -1085,7 +1085,7 @@ sequenceDiagram
        │                   │                   │                   │
        │                   │                   │                   │  4. 更新状态
        │                   │                   │                   │
-       │                   │  5. 通知AgentConsole审核结果          │
+       │                   │  5. 通知AbilityConsole审核结果          │
        │                   │──────────────────▶│                   │
        │                   │  POST /internal/skills/{id}/sync-callback
        │                   │                   │                   │
@@ -1101,8 +1101,8 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     participant A as Admin
-    participant AM as AgentMgmt
-    participant AC as AgentConsole
+    participant AM as HAGManager
+    participant AC as AbilityConsole
     participant SS as SkillStore
 
     A->>AM: POST /skills/{id}/approve
@@ -1136,7 +1136,7 @@ sequenceDiagram
 #### 5.4.1 时序图（ASCII）
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Runtime   │     │ AgentConsole│     │  SkillStore │
+│   Runtime   │     │AbilityConsole│     │  SkillStore │
 └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
        │                   │                   │
        │  1. 获取Agent绑定的SkillIds           │
@@ -1172,7 +1172,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     participant RT as Runtime
-    participant AC as AgentConsole
+    participant AC as AbilityConsole
     participant SS as SkillStore
     participant OBS as 对象存储
 
@@ -1418,8 +1418,8 @@ https://OBS.example.com/skills/xxx.zip?
 ## 九、接口设计参考
 
 详细的OpenAPI规范请参考:
-- [AgentConsole API](./openapi-agent-console.yaml)
-- [AgentMgmt API](./openapi-agent-mgmt.yaml)
+- [AbilityConsole API](./openapi-ability-console.yaml)
+- [HAGManager API](./openapi-hag-manager.yaml)
 - [SkillStore API](./openapi-skill-store.yaml)
 
 ---
@@ -1431,9 +1431,9 @@ https://OBS.example.com/skills/xxx.zip?
 - 便于Runtime统一从SkillStore获取数据
 - 通过visibility字段控制可见性
 
-### 10.2 为什么绑定关系存在AgentConsole？
+### 10.2 为什么绑定关系存在AbilityConsole？
 - 绑定关系是Agent的属性，应与Agent数据同库
-- Runtime先从AgentConsole获取绑定关系，再从SkillStore获取详情
+- Runtime先从AbilityConsole获取绑定关系，再从SkillStore获取详情
 - 便于开发者在一个系统内管理Agent的所有配置
 
 ### 10.3 为什么更新需要重新审核？

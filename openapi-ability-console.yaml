@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: AgentConsole API
+  title: AbilityConsole API
   description: |
-    Agent开发者控制台API，提供Skill上传、管理、Agent绑定等功能。
+    能力控制台API（开发者IDE），提供Skill上传、管理、Agent绑定等功能。
 
     ## 认证方式
     所有接口需要在Header中携带Bearer Token:
@@ -403,7 +403,7 @@ paths:
                         example: 1
                       mgmtSyncStatus:
                         type: integer
-                        description: AgentMgmt同步状态
+                        description: HAGManager同步状态
                         example: 1
         '400':
           description: 请求参数错误
@@ -666,7 +666,7 @@ paths:
         - Internal
       summary: 同步状态回调
       description: |
-        供SkillStore/AgentMgmt回调通知同步结果。
+        供SkillStore/HAGManager回调通知同步结果。
 
         **注意：** 此接口仅供内部服务调用，需要进行服务间认证。
       operationId: syncCallback
@@ -904,14 +904,14 @@ components:
               type: integer
               enum: [0, 1, 2]
               description: |
-                AgentMgmt同步状态
+                HAGManager同步状态
                 - 0: 未同步
                 - 1: 已同步
                 - 2: 同步失败
             mgmtSyncedAt:
               type: string
               format: date-time
-              description: AgentMgmt同步时间
+              description: HAGManager同步时间
             files:
               type: array
               description: 文件列表

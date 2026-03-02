@@ -8,13 +8,13 @@
 ## Phase 1: 基础设施搭建 (第1周)
 
 ### 1.1 数据库设计
-- [ ] 创建AgentConsole数据库DDL脚本
-  - [ ] `ac_skill` Skill主表
-  - [ ] `ac_skill_file` Skill文件表
-  - [ ] `ac_agent_skill_binding` Agent-Skill绑定表
-- [ ] 创建AgentMgmt数据库DDL脚本
-  - [ ] `am_skill_review` Skill审核主表
-  - [ ] `am_skill_review_log` 审核日志表
+- [ ] 创建AbilityConsole数据库DDL脚本
+  - [ ] `ab_skill` Skill主表
+  - [ ] `ab_skill_file` Skill文件表
+  - [ ] `ab_agent_skill_binding` Agent-Skill绑定表
+- [ ] 创建HAGManager数据库DDL脚本
+  - [ ] `hm_skill_review` Skill审核主表
+  - [ ] `hm_skill_review_log` 审核日志表
 - [ ] 创建SkillStore数据库DDL脚本
   - [ ] `ss_skill` Skill商店主表
   - [ ] `ss_skill_download_log` Skill下载记录表
@@ -27,7 +27,7 @@
 
 ---
 
-## Phase 2: AgentConsole Skill管理 (第2-3周)
+## Phase 2: AbilityConsole Skill管理 (第2-3周)
 
 ### 2.1 Skill上传功能
 - [ ] 实现文件上传接口 `POST /api/v1/console/skills`
@@ -58,24 +58,24 @@
 
 ## Phase 3: 服务间同步机制 (第4周)
 
-### 3.1 AgentConsole -> SkillStore同步
+### 3.1 AbilityConsole -> SkillStore同步
 - [ ] 实现导入后同步逻辑
 - [ ] 调用 `POST /api/v1/store/internal/skills/sync`
 - [ ] 实现同步状态追踪
 - [ ] 实现重试机制
 
-### 3.2 AgentConsole -> AgentMgmt同步
+### 3.2 AbilityConsole -> HAGManager同步
 - [ ] 实现提交审核时同步逻辑
 - [ ] 调用 `POST /api/v1/mgmt/internal/skills/sync`
 - [ ] 实现同步状态追踪
 
 ### 3.3 回调接口
 - [ ] 实现同步状态回调 `POST /api/v1/console/internal/skills/{skillId}/sync-callback`
-- [ ] 处理AgentMgmt审核结果回调
+- [ ] 处理HAGManager审核结果回调
 
 ---
 
-## Phase 4: AgentMgmt审核功能 (第5周)
+## Phase 4: HAGManager审核功能 (第5周)
 
 ### 4.1 审核管理接口
 - [ ] 获取待审核列表 `GET /api/v1/mgmt/skills/pending`
@@ -88,7 +88,7 @@
 ### 4.2 内部同步接口
 - [ ] 接收Skill审核数据 `POST /api/v1/mgmt/internal/skills/sync`
 - [ ] 审核通过后更新SkillStore状态
-- [ ] 回调通知AgentConsole
+- [ ] 回调通知AbilityConsole
 
 ---
 
@@ -110,7 +110,7 @@
 ## Phase 6: Runtime集成 (第7周)
 
 ### 6.1 Runtime获取Skill流程
-- [ ] Runtime从AgentConsole获取绑定关系
+- [ ] Runtime从AbilityConsole获取绑定关系
 - [ ] Runtime从SkillStore批量查询Skill信息
 - [ ] Runtime获取签名下载URL
 - [ ] Runtime下载Skill包
@@ -126,8 +126,8 @@
 ## Phase 7: 集成测试与联调 (第8周)
 
 ### 7.1 单元测试
-- [ ] AgentConsole服务单元测试
-- [ ] AgentMgmt服务单元测试
+- [ ] AbilityConsole服务单元测试
+- [ ] HAGManager服务单元测试
 - [ ] SkillStore服务单元测试
 
 ### 7.2 集成测试
@@ -159,7 +159,7 @@
 ## 关键里程碑
 
 - [ ] **M1**: 数据库和存储基础设施就绪 (第1周末)
-- [ ] **M2**: AgentConsole Skill上传功能可用 (第3周末)
+- [ ] **M2**: AbilityConsole Skill上传功能可用 (第3周末)
 - [ ] **M3**: 服务间同步机制打通 (第4周末)
 - [ ] **M4**: 审核流程端到端可用 (第5周末)
 - [ ] **M5**: SkillStore商店功能上线 (第6周末)
