@@ -22,21 +22,21 @@
 graph TB
     subgraph "开发者侧"
         Dev[开发者]
-        AC[AgentConsole<br/>开发者IDE]
+        AC[AbilityConsole<br/>开发者IDE]
     end
 
     subgraph "管理侧"
         Admin[管理员]
-        HM[HAGManage<br/>管理后台]
+        HM[HAGManager<br/>管理后台]
     end
 
     subgraph "运行时"
-        RT[泛AgentController<br/>Agent运行时含九问]
+        RT[AgentController<br/>Agent运行时含九问]
     end
 
     subgraph "数据层"
-        ACDB[(Console DB<br/>MySQL)]
-        HMDB[(HAGManage DB<br/>MySQL)]
+        ACDB[(AbilityConsole DB<br/>MySQL)]
+        HMDB[(HAGManager DB<br/>MySQL)]
         SSDB[(Store DB<br/>MySQL)]
         OBS[(OBS)]
     end
@@ -66,8 +66,8 @@ graph TB
 
 ```mermaid
 graph LR
-    AC[AgentConsole] -->|导入同步| SS[SkillStore]
-    AC -->|提交审核| AM[AgentMgmt]
+    AC[AbilityConsole] -->|导入同步| SS[SkillStore]
+    AC -->|提交审核| AM[HAGManager]
     AM -->|审核通过更新| SS
     RT[AgentController] -->|获取绑定| AC
     RT -->|获取Skill| SS
@@ -83,8 +83,8 @@ graph LR
 ```mermaid
 graph TB
     subgraph "应用层"
-        AC[AgentConsole]
-        HM[HAGManage]
+        AC[AbilityConsole]
+        HM[HAGManager]
         SS[SkillStore]
     end
 
@@ -116,7 +116,7 @@ graph TB
 sequenceDiagram
     autonumber
     participant D as Developer
-    participant AC as AgentConsole
+    participant AC as AbilityConsole
     participant SS as SkillStore
     participant OBS as 对象存储
 
@@ -174,8 +174,8 @@ flowchart TD
 sequenceDiagram
     autonumber
     participant D as Developer
-    participant AC as AgentConsole
-    participant AM as AgentMgmt
+    participant AC as AbilityConsole
+    participant AM as HAGManager
 
     D->>AC: POST /skills/{id}/submit
     activate AC
@@ -200,7 +200,7 @@ flowchart TD
     A[开发者提交审核] --> B{Skill状态=草稿?}
     B -->|否| Z1[返回错误: 状态不允许提交]
     B -->|是| C[更新状态为待审核]
-    C --> D[同步数据到AgentMgmt]
+    C --> D[同步数据到HAGManager]
     D --> E{同步成功?}
     E -->|失败| F[记录同步失败]
     E -->|成功| G[更新同步状态]
@@ -215,8 +215,8 @@ flowchart TD
 sequenceDiagram
     autonumber
     participant A as Admin
-    participant AM as AgentMgmt
-    participant AC as AgentConsole
+    participant AM as HAGManager
+    participant AC as AbilityConsole
     participant SS as SkillStore
 
     A->>AM: POST /skills/{id}/approve
@@ -249,14 +249,14 @@ flowchart TD
     A[管理员审核Skill] --> B{审核决策}
     B -->|通过| C{Skill可见性}
     C -->|公有| D[更新SkillStore状态为已发布]
-    C -->|私有| E[仅更新AgentMgmt状态]
-    D --> F[回调通知AgentConsole]
+    C -->|私有| E[仅更新HAGManager状态]
+    D --> F[回调通知AbilityConsole]
     E --> F
     F --> G[通知开发者审核通过]
 
     B -->|拒绝| H[记录拒绝原因]
     H --> I[更新状态为已拒绝]
-    I --> J[回调通知AgentConsole]
+    I --> J[回调通知AbilityConsole]
     J --> K[通知开发者审核拒绝]
 
     B -->|需要修改| L[记录修改意见]
@@ -270,7 +270,7 @@ flowchart TD
 sequenceDiagram
     autonumber
     participant RT as AgentController
-    participant AC as AgentConsole
+    participant AC as AbilityConsole
     participant SS as SkillStore
     participant OBS as 对象存储
 
@@ -327,7 +327,7 @@ flowchart TD
 sequenceDiagram
     autonumber
     participant D as Developer
-    participant AC as AgentConsole
+    participant AC as AbilityConsole
     participant SS as SkillStore
 
     D->>AC: POST /agents/{id}/skills
@@ -498,19 +498,19 @@ stateDiagram-v2
 
 ```mermaid
 graph TB
-    subgraph "AgentConsole DB"
-        AC1[ac_skill<br/>Skill主表]
-        AC2[ac_skill_file<br/>Skill文件表]
-        AC3[ac_skill_version<br/>Skill版本表]
-        AC4[ac_agent_skill_binding<br/>Agent-Skill绑定表]
-        AC5[ac_sync_log<br/>同步日志表]
+    subgraph "AbilityConsole DB"
+        AC1[ab_skill<br/>Skill主表]
+        AC2[ab_skill_file<br/>Skill文件表]
+        AC3[ab_skill_version<br/>Skill版本表]
+        AC4[ab_agent_skill_binding<br/>Agent-Skill绑定表]
+        AC5[ab_sync_log<br/>同步日志表]
     end
 
-    subgraph "AgentMgmt DB"
-        AM1[am_skill_review<br/>审核记录表]
-        AM2[am_skill_review_log<br/>审核日志表]
-        AM3[am_skill_snapshot<br/>Skill快照表]
-        AM4[am_admin<br/>管理员表]
+    subgraph "HAGManager DB"
+        AM1[hm_skill_review<br/>审核记录表]
+        AM2[hm_skill_review_log<br/>审核日志表]
+        AM3[hm_skill_snapshot<br/>Skill快照表]
+        AM4[hm_admin<br/>管理员表]
     end
 
     subgraph "SkillStore DB"
@@ -520,16 +520,16 @@ graph TB
         SS4[ss_sync_record<br/>同步记录表]
     end
 
-    style AC1 fill:#e1f5fe
-    style AM1 fill:#fff3e0
+    style ab1 fill:#e1f5fe
+    style hm1 fill:#fff3e0
     style SS1 fill:#e8f5e9
 ```
 
 ---
 
-### 5.3 AgentConsole 数据库设计
+### 5.3 AbilityConsole 数据库设计
 
-> **数据库**: `agent_console`
+> **数据库**: `ability_console`
 > **字符集**: `utf8mb4`
 > **排序规则**: `utf8mb4_unicode_ci`
 
@@ -537,13 +537,13 @@ graph TB
 
 ```mermaid
 erDiagram
-    ac_skill ||--o{ ac_skill_file : contains
-    ac_skill ||--o{ ac_skill_version : has
-    ac_skill ||--o{ ac_agent_skill_binding : "bound to"
-    ac_skill ||--o{ ac_sync_log : logs
-    AGENT ||--o{ ac_agent_skill_binding : has
+    ab_skill ||--o{ ab_skill_file : contains
+    ab_skill ||--o{ ab_skill_version : has
+    ab_skill ||--o{ ab_agent_skill_binding : "bound to"
+    ab_skill ||--o{ ab_sync_log : logs
+    AGENT ||--o{ ab_agent_skill_binding : has
 
-    ac_skill {
+    ab_skill {
         bigint id PK "Skill唯一ID(雪花ID)"
         varchar name "Skill标识名"
         varchar display_name "显示名称"
@@ -565,7 +565,7 @@ erDiagram
         datetime deleted_at "软删除时间"
     }
 
-    ac_skill_file {
+    ab_skill_file {
         bigint id PK "文件ID"
         bigint skill_id FK "Skill ID"
         varchar file_path "文件相对路径"
@@ -575,7 +575,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    ac_skill_version {
+    ab_skill_version {
         bigint id PK "版本ID"
         bigint skill_id FK "Skill ID"
         varchar version "版本号"
@@ -587,7 +587,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    ac_agent_skill_binding {
+    ab_agent_skill_binding {
         bigint id PK "绑定ID"
         bigint agent_id FK "Agent ID"
         bigint skill_id FK "Skill ID"
@@ -600,10 +600,10 @@ erDiagram
         datetime updated_at "更新时间"
     }
 
-    ac_sync_log {
+    ab_sync_log {
         bigint id PK "日志ID"
         bigint skill_id FK "Skill ID"
-        varchar target_service "目标服务:skill_store,agent_mgmt"
+        varchar target_service "目标服务:skill_store,hag_manager"
         tinyint sync_status "同步状态"
         text request_payload "请求内容"
         text response_payload "响应内容"
@@ -621,7 +621,7 @@ erDiagram
 
 #### 5.3.2 表结构定义
 
-##### ac_skill (Skill主表)
+##### ab_skill (Skill主表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -656,7 +656,7 @@ INDEX idx_store_sync_status (store_sync_status)
 INDEX idx_created_at (created_at)
 ```
 
-##### ac_skill_file (Skill文件表)
+##### ab_skill_file (Skill文件表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -675,7 +675,7 @@ INDEX idx_skill_id (skill_id)
 INDEX idx_file_path (skill_id, file_path)
 ```
 
-##### ac_skill_version (Skill版本表)
+##### ab_skill_version (Skill版本表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -696,7 +696,7 @@ UNIQUE INDEX uk_skill_version (skill_id, version)
 INDEX idx_skill_id (skill_id)
 ```
 
-##### ac_agent_skill_binding (Agent-Skill绑定表)
+##### ab_agent_skill_binding (Agent-Skill绑定表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -719,13 +719,13 @@ INDEX idx_skill_id (skill_id)
 INDEX idx_enabled (agent_id, enabled)
 ```
 
-##### ac_sync_log (同步日志表)
+##### ab_sync_log (同步日志表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
 | id | BIGINT | 是 | 雪花ID | 主键 |
 | skill_id | BIGINT | 是 | - | Skill ID |
-| target_service | VARCHAR(32) | 是 | - | 目标服务: skill_store, agent_mgmt |
+| target_service | VARCHAR(32) | 是 | - | 目标服务: skill_store, hag_manager |
 | sync_status | TINYINT | 是 | - | 同步状态: 0=失败, 1=成功 |
 | request_payload | TEXT | 否 | NULL | 请求内容(JSON) |
 | response_payload | TEXT | 否 | NULL | 响应内容(JSON) |
@@ -742,9 +742,9 @@ INDEX idx_created_at (created_at)
 
 ---
 
-### 5.4 AgentMgmt 数据库设计
+### 5.4 HAGManager 数据库设计
 
-> **数据库**: `agent_mgmt`
+> **数据库**: `hag_manager`
 > **字符集**: `utf8mb4`
 > **排序规则**: `utf8mb4_unicode_ci`
 
@@ -752,13 +752,13 @@ INDEX idx_created_at (created_at)
 
 ```mermaid
 erDiagram
-    am_skill_review ||--o{ am_skill_review_log : has
-    am_skill_review ||--o| am_skill_snapshot : contains
-    am_admin ||--o{ am_skill_review_log : creates
+    hm_skill_review ||--o{ hm_skill_review_log : has
+    hm_skill_review ||--o| hm_skill_snapshot : contains
+    hm_admin ||--o{ hm_skill_review_log : creates
 
-    am_skill_review {
+    hm_skill_review {
         bigint id PK "审核记录ID(雪花ID)"
-        bigint skill_id "Skill ID(来自AgentConsole)"
+        bigint skill_id "Skill ID(来自AbilityConsole)"
         varchar skill_name "Skill名称(快照)"
         varchar skill_version "Skill版本(快照)"
         bigint developer_id "开发者ID"
@@ -773,7 +773,7 @@ erDiagram
         datetime updated_at "更新时间"
     }
 
-    am_skill_review_log {
+    hm_skill_review_log {
         bigint id PK "日志ID"
         bigint review_id FK "审核记录ID"
         bigint admin_id FK "操作人ID"
@@ -784,7 +784,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    am_skill_snapshot {
+    hm_skill_snapshot {
         bigint id PK "快照ID"
         bigint review_id FK "审核记录ID"
         varchar name "Skill标识名"
@@ -799,7 +799,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    am_admin {
+    hm_admin {
         bigint id PK "管理员ID"
         varchar username "用户名"
         varchar password_hash "密码哈希"
@@ -815,12 +815,12 @@ erDiagram
 
 #### 5.4.2 表结构定义
 
-##### am_skill_review (审核记录表)
+##### hm_skill_review (审核记录表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
 | id | BIGINT | 是 | 雪花ID | 主键 |
-| skill_id | BIGINT | 是 | - | Skill ID(来自AgentConsole) |
+| skill_id | BIGINT | 是 | - | Skill ID(来自AbilityConsole) |
 | skill_name | VARCHAR(128) | 是 | - | Skill名称(快照) |
 | skill_version | VARCHAR(32) | 是 | - | Skill版本(快照) |
 | developer_id | BIGINT | 是 | - | 开发者ID |
@@ -844,7 +844,7 @@ INDEX idx_created_at (created_at)
 INDEX idx_reviewer_id (reviewer_id)
 ```
 
-##### am_skill_review_log (审核日志表)
+##### hm_skill_review_log (审核日志表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -865,7 +865,7 @@ INDEX idx_admin_id (admin_id)
 INDEX idx_created_at (created_at)
 ```
 
-##### am_skill_snapshot (Skill快照表)
+##### hm_skill_snapshot (Skill快照表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -889,7 +889,7 @@ INDEX idx_review_id (review_id)
 INDEX idx_skill_name (name)
 ```
 
-##### am_admin (管理员表)
+##### hm_admin (管理员表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -928,7 +928,7 @@ erDiagram
     ss_skill ||--o{ ss_sync_record : records
 
     ss_skill {
-        bigint id PK "Skill ID(与AgentConsole一致)"
+        bigint id PK "Skill ID(与AbilityConsole一致)"
         varchar name "Skill标识名"
         varchar display_name "显示名称"
         text description "描述"
@@ -943,7 +943,7 @@ erDiagram
         int download_count "下载次数"
         decimal rating "评分(0-5)"
         int rating_count "评分人数"
-        tinyint source "来源:1AgentConsole,2外部导入"
+        tinyint source "来源:1AbilityConsole,2外部导入"
         tinyint sync_status "同步状态:0未同步,1同步中,2已同步,3同步失败"
         datetime synced_at "最后同步时间"
         varchar source_service "来源服务标识"
@@ -995,7 +995,7 @@ erDiagram
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
-| id | BIGINT | 是 | - | 主键(与AgentConsole的Skill ID一致) |
+| id | BIGINT | 是 | - | 主键(与AbilityConsole的Skill ID一致) |
 | name | VARCHAR(128) | 是 | - | Skill标识名，全局唯一 |
 | display_name | VARCHAR(256) | 否 | NULL | 显示名称 |
 | description | TEXT | 是 | - | 描述信息 |
@@ -1010,7 +1010,7 @@ erDiagram
 | download_count | INT | 是 | 0 | 累计下载次数 |
 | rating | DECIMAL(2,1) | 是 | 0.0 | 评分(0.0-5.0) |
 | rating_count | INT | 是 | 0 | 评分人数 |
-| source | TINYINT | 是 | 1 | 来源: 1=AgentConsole, 2=外部导入 |
+| source | TINYINT | 是 | 1 | 来源: 1=AbilityConsole, 2=外部导入 |
 | sync_status | TINYINT | 是 | 0 | 同步状态: 0=未同步, 1=同步中, 2=已同步, 3=同步失败 |
 | synced_at | DATETIME | 否 | NULL | 最后同步时间 |
 | source_service | VARCHAR(32) | 否 | NULL | 来源服务标识 |
@@ -1081,7 +1081,7 @@ INDEX idx_status (status)
 |--------|------|------|--------|------|
 | id | BIGINT | 是 | 雪花ID | 主键 |
 | skill_id | BIGINT | 是 | - | Skill ID |
-| source_service | VARCHAR(32) | 是 | - | 来源服务: agent_console |
+| source_service | VARCHAR(32) | 是 | - | 来源服务: ability_console |
 | operation | TINYINT | 是 | - | 操作类型: 1=创建, 2=更新, 3=删除 |
 | sync_status | TINYINT | 是 | 0 | 同步状态: 0=待处理, 1=成功, 2=失败 |
 | payload | TEXT | 否 | NULL | 同步数据(JSON格式) |
@@ -1104,10 +1104,10 @@ INDEX idx_created_at (created_at)
 
 ```mermaid
 flowchart TB
-    subgraph "AgentConsole 数据源"
-        AC_SKILL[(ac_skill)]
-        AC_FILE[(ac_skill_file)]
-        AC_BIND[(ac_agent_skill_binding)]
+    subgraph "AbilityConsole 数据源"
+        AB_SKILL[(ab_skill)]
+        AB_FILE[(ab_skill_file)]
+        AB_BIND[(ab_agent_skill_binding)]
     end
 
     subgraph "同步机制"
@@ -1122,23 +1122,23 @@ flowchart TB
         SS_SYNC[(ss_sync_record)]
     end
 
-    subgraph "AgentMgmt 数据副本"
-        AM_REVIEW[(am_skill_review)]
-        AM_SNAP[(am_skill_snapshot)]
-        AM_LOG[(am_skill_review_log)]
+    subgraph "HAGManager 数据副本"
+        HM_REVIEW[(hm_skill_review)]
+        HM_SNAP[(hm_skill_snapshot)]
+        HM_LOG[(hm_skill_review_log)]
     end
 
-    AC_SKILL -->|导入时同步| SYNC1
+    AB_SKILL -->|导入时同步| SYNC1
     SYNC1 --> SS_SKILL
     SYNC1 --> SS_SYNC
 
-    AC_SKILL -->|提交审核时同步| SYNC2
-    SYNC2 --> AM_REVIEW
-    SYNC2 --> AM_SNAP
+    AB_SKILL -->|提交审核时同步| SYNC2
+    SYNC2 --> HM_REVIEW
+    SYNC2 --> HM_SNAP
 
-    AM_REVIEW -->|审核通过更新| SS_SKILL
+    HM_REVIEW -->|审核通过更新| SS_SKILL
 
-    AC_SKILL -.->|异步消息| MQ
+    AB_SKILL -.->|异步消息| MQ
     MQ -.-> SS_SKILL
 ```
 
@@ -1433,7 +1433,7 @@ flowchart LR
 sequenceDiagram
     autonumber
     participant D as Developer
-    participant AC as AgentConsole
+    participant AC as AbilityConsole
     participant SC as SecurityChecker
     participant LLM as 内部大模型
 
@@ -1577,7 +1577,7 @@ flowchart LR
     end
 
     RT[AgentController] --> R2
-    R2 -->|miss| AC[(AgentConsole DB)]
+    R2 -->|miss| AB[(AbilityConsole DB)]
 
     SS[SkillStore] --> R1
     R1 -->|miss| SDB[(SkillStore DB)]
@@ -1616,8 +1616,8 @@ sequenceDiagram
 ## 九、接口设计参考
 
 详细的OpenAPI规范请参考:
-- [AgentConsole API](./openapi-agent-console.yaml)
-- [AgentMgmt API](./openapi-agent-mgmt.yaml)
+- [AbilityConsole API](./openapi-ability-console.yaml)
+- [HAGManager API](./openapi-hag-manager.yaml)
 - [SkillStore API](./openapi-skill-store.yaml)
 
 ---
@@ -1629,9 +1629,9 @@ sequenceDiagram
 - 便于AgentController统一从SkillStore获取数据
 - 通过visibility字段控制可见性
 
-### 10.2 为什么绑定关系存在AgentConsole？
+### 10.2 为什么绑定关系存在AbilityConsole？
 - 绑定关系是Agent的属性，应与Agent数据同库
-- AgentController先从AgentConsole获取绑定关系，再从SkillStore获取详情
+- AgentController先从AbilityConsole获取绑定关系，再从SkillStore获取详情
 - 便于开发者在一个系统内管理Agent的所有配置
 
 ### 10.3 为什么更新需要重新审核？
