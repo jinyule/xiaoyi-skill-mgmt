@@ -499,25 +499,25 @@ stateDiagram-v2
 ```mermaid
 graph TB
     subgraph "AbilityConsole DB"
-        AC1[ab_skill<br/>Skill主表]
-        AC2[ab_skill_file<br/>Skill文件表]
-        AC3[ab_skill_version<br/>Skill版本表]
-        AC4[ab_agent_skill_binding<br/>Agent-Skill绑定表]
-        AC5[ab_sync_log<br/>同步日志表]
+        AC1[t_skill<br/>Skill主表]
+        AC2[t_skill_file<br/>Skill文件表]
+        AC3[t_skill_version<br/>Skill版本表]
+        AC4[t_agent_skill_binding<br/>Agent-Skill绑定表]
+        AC5[t_sync_log<br/>同步日志表]
     end
 
     subgraph "HAGManager DB"
-        AM1[hm_skill_review<br/>审核记录表]
-        AM2[hm_skill_review_log<br/>审核日志表]
-        AM3[hm_skill_snapshot<br/>Skill快照表]
-        AM4[hm_admin<br/>管理员表]
+        AM1[t_skill_review<br/>审核记录表]
+        AM2[t_skill_review_log<br/>审核日志表]
+        AM3[t_skill_snapshot<br/>Skill快照表]
+        AM4[t_admin<br/>管理员表]
     end
 
     subgraph "SkillStore DB"
-        SS1[ss_skill<br/>Skill元数据表]
-        SS2[ss_skill_tag<br/>Skill标签表]
-        SS3[ss_skill_download_log<br/>下载日志表]
-        SS4[ss_sync_record<br/>同步记录表]
+        SS1[t_skill<br/>Skill元数据表]
+        SS2[t_skill_tag<br/>Skill标签表]
+        SS3[t_skill_download_log<br/>下载日志表]
+        SS4[t_sync_record<br/>同步记录表]
     end
 
     style ab1 fill:#e1f5fe
@@ -537,13 +537,13 @@ graph TB
 
 ```mermaid
 erDiagram
-    ab_skill ||--o{ ab_skill_file : contains
-    ab_skill ||--o{ ab_skill_version : has
-    ab_skill ||--o{ ab_agent_skill_binding : "bound to"
-    ab_skill ||--o{ ab_sync_log : logs
-    AGENT ||--o{ ab_agent_skill_binding : has
+    t_skill ||--o{ t_skill_file : contains
+    t_skill ||--o{ t_skill_version : has
+    t_skill ||--o{ t_agent_skill_binding : "bound to"
+    t_skill ||--o{ t_sync_log : logs
+    AGENT ||--o{ t_agent_skill_binding : has
 
-    ab_skill {
+    t_skill {
         bigint id PK "Skill唯一ID(雪花ID)"
         varchar name "Skill标识名"
         varchar display_name "显示名称"
@@ -565,7 +565,7 @@ erDiagram
         datetime deleted_at "软删除时间"
     }
 
-    ab_skill_file {
+    t_skill_file {
         bigint id PK "文件ID"
         bigint skill_id FK "Skill ID"
         varchar file_path "文件相对路径"
@@ -575,7 +575,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    ab_skill_version {
+    t_skill_version {
         bigint id PK "版本ID"
         bigint skill_id FK "Skill ID"
         varchar version "版本号"
@@ -587,7 +587,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    ab_agent_skill_binding {
+    t_agent_skill_binding {
         bigint id PK "绑定ID"
         bigint agent_id FK "Agent ID"
         bigint skill_id FK "Skill ID"
@@ -600,7 +600,7 @@ erDiagram
         datetime updated_at "更新时间"
     }
 
-    ab_sync_log {
+    t_sync_log {
         bigint id PK "日志ID"
         bigint skill_id FK "Skill ID"
         varchar target_service "目标服务:skill_store,hag_manager"
@@ -621,7 +621,7 @@ erDiagram
 
 #### 5.3.2 表结构定义
 
-##### ab_skill (Skill主表)
+##### t_skill (Skill主表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -656,7 +656,7 @@ INDEX idx_store_sync_status (store_sync_status)
 INDEX idx_created_at (created_at)
 ```
 
-##### ab_skill_file (Skill文件表)
+##### t_skill_file (Skill文件表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -675,7 +675,7 @@ INDEX idx_skill_id (skill_id)
 INDEX idx_file_path (skill_id, file_path)
 ```
 
-##### ab_skill_version (Skill版本表)
+##### t_skill_version (Skill版本表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -696,7 +696,7 @@ UNIQUE INDEX uk_skill_version (skill_id, version)
 INDEX idx_skill_id (skill_id)
 ```
 
-##### ab_agent_skill_binding (Agent-Skill绑定表)
+##### t_agent_skill_binding (Agent-Skill绑定表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -719,7 +719,7 @@ INDEX idx_skill_id (skill_id)
 INDEX idx_enabled (agent_id, enabled)
 ```
 
-##### ab_sync_log (同步日志表)
+##### t_sync_log (同步日志表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -752,11 +752,11 @@ INDEX idx_created_at (created_at)
 
 ```mermaid
 erDiagram
-    hm_skill_review ||--o{ hm_skill_review_log : has
-    hm_skill_review ||--o| hm_skill_snapshot : contains
-    hm_admin ||--o{ hm_skill_review_log : creates
+    t_skill_review ||--o{ t_skill_review_log : has
+    t_skill_review ||--o| t_skill_snapshot : contains
+    t_admin ||--o{ t_skill_review_log : creates
 
-    hm_skill_review {
+    t_skill_review {
         bigint id PK "审核记录ID(雪花ID)"
         bigint skill_id "Skill ID(来自AbilityConsole)"
         varchar skill_name "Skill名称(快照)"
@@ -773,7 +773,7 @@ erDiagram
         datetime updated_at "更新时间"
     }
 
-    hm_skill_review_log {
+    t_skill_review_log {
         bigint id PK "日志ID"
         bigint review_id FK "审核记录ID"
         bigint admin_id FK "操作人ID"
@@ -784,7 +784,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    hm_skill_snapshot {
+    t_skill_snapshot {
         bigint id PK "快照ID"
         bigint review_id FK "审核记录ID"
         varchar name "Skill标识名"
@@ -799,7 +799,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    hm_admin {
+    t_admin {
         bigint id PK "管理员ID"
         varchar username "用户名"
         varchar password_hash "密码哈希"
@@ -815,7 +815,7 @@ erDiagram
 
 #### 5.4.2 表结构定义
 
-##### hm_skill_review (审核记录表)
+##### t_skill_review (审核记录表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -844,7 +844,7 @@ INDEX idx_created_at (created_at)
 INDEX idx_reviewer_id (reviewer_id)
 ```
 
-##### hm_skill_review_log (审核日志表)
+##### t_skill_review_log (审核日志表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -865,7 +865,7 @@ INDEX idx_admin_id (admin_id)
 INDEX idx_created_at (created_at)
 ```
 
-##### hm_skill_snapshot (Skill快照表)
+##### t_skill_snapshot (Skill快照表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -889,7 +889,7 @@ INDEX idx_review_id (review_id)
 INDEX idx_skill_name (name)
 ```
 
-##### hm_admin (管理员表)
+##### t_admin (管理员表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -923,11 +923,11 @@ INDEX idx_status (status)
 
 ```mermaid
 erDiagram
-    ss_skill ||--o{ ss_skill_tag : has
-    ss_skill ||--o{ ss_skill_download_log : logs
-    ss_skill ||--o{ ss_sync_record : records
+    t_skill ||--o{ t_skill_tag : has
+    t_skill ||--o{ t_skill_download_log : logs
+    t_skill ||--o{ t_sync_record : records
 
-    ss_skill {
+    t_skill {
         bigint id PK "Skill ID(与AbilityConsole一致)"
         varchar name "Skill标识名"
         varchar display_name "显示名称"
@@ -953,7 +953,7 @@ erDiagram
         datetime updated_at "更新时间"
     }
 
-    ss_skill_tag {
+    t_skill_tag {
         bigint id PK "标签ID"
         bigint skill_id FK "Skill ID"
         varchar tag_name "标签名称"
@@ -961,7 +961,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    ss_skill_download_log {
+    t_skill_download_log {
         bigint id PK "日志ID"
         bigint skill_id FK "Skill ID"
         bigint agent_id "下载的Agent ID"
@@ -975,7 +975,7 @@ erDiagram
         datetime created_at "创建时间"
     }
 
-    ss_sync_record {
+    t_sync_record {
         bigint id PK "记录ID"
         bigint skill_id FK "Skill ID"
         varchar source_service "来源服务"
@@ -991,7 +991,7 @@ erDiagram
 
 #### 5.5.2 表结构定义
 
-##### ss_skill (Skill元数据表)
+##### t_skill (Skill元数据表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -1032,7 +1032,7 @@ INDEX idx_sync_status (sync_status)
 INDEX idx_published_at (published_at DESC)
 ```
 
-##### ss_skill_tag (Skill标签表)
+##### t_skill_tag (Skill标签表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -1050,7 +1050,7 @@ INDEX idx_tag_name (tag_name)
 INDEX idx_skill_tag (skill_id, tag_name)
 ```
 
-##### ss_skill_download_log (下载日志表)
+##### t_skill_download_log (下载日志表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -1075,7 +1075,7 @@ INDEX idx_created_at (created_at)
 INDEX idx_status (status)
 ```
 
-##### ss_sync_record (同步记录表)
+##### t_sync_record (同步记录表)
 
 | 字段名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
@@ -1105,9 +1105,9 @@ INDEX idx_created_at (created_at)
 ```mermaid
 flowchart TB
     subgraph "AbilityConsole 数据源"
-        AB_SKILL[(ab_skill)]
-        AB_FILE[(ab_skill_file)]
-        AB_BIND[(ab_agent_skill_binding)]
+        AB_SKILL[(t_skill)]
+        AB_FILE[(t_skill_file)]
+        AB_BIND[(t_agent_skill_binding)]
     end
 
     subgraph "同步机制"
@@ -1117,15 +1117,15 @@ flowchart TB
     end
 
     subgraph "SkillStore 数据副本"
-        SS_SKILL[(ss_skill)]
-        SS_TAG[(ss_skill_tag)]
-        SS_SYNC[(ss_sync_record)]
+        SS_SKILL[(t_skill)]
+        SS_TAG[(t_skill_tag)]
+        SS_SYNC[(t_sync_record)]
     end
 
     subgraph "HAGManager 数据副本"
-        HM_REVIEW[(hm_skill_review)]
-        HM_SNAP[(hm_skill_snapshot)]
-        HM_LOG[(hm_skill_review_log)]
+        HM_REVIEW[(t_skill_review)]
+        HM_SNAP[(t_skill_snapshot)]
+        HM_LOG[(t_skill_review_log)]
     end
 
     AB_SKILL -->|导入时同步| SYNC1

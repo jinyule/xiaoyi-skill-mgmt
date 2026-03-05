@@ -124,7 +124,7 @@ Discovery → Load metadata → Match → Activate → Execute
 
 #### 3.1.1 Skill主表
 ```sql
-CREATE TABLE ab_skill (
+CREATE TABLE t_skill (
     id VARCHAR(32) PRIMARY KEY COMMENT 'Skill唯一ID（UUID）',
     name VARCHAR(64) NOT NULL COMMENT 'Skill名称(协议name字段)',
     display_name VARCHAR(128) COMMENT '显示名称',
@@ -157,7 +157,7 @@ CREATE TABLE ab_skill (
 
 #### 3.1.2 Skill文件表
 ```sql
-CREATE TABLE ab_skill_file (
+CREATE TABLE t_skill_file (
     id VARCHAR(32) PRIMARY KEY,
     skill_id VARCHAR(32) NOT NULL COMMENT 'Skill ID',
     file_path VARCHAR(256) NOT NULL COMMENT '文件相对路径',
@@ -173,7 +173,7 @@ CREATE TABLE ab_skill_file (
 
 #### 3.1.3 Agent-Skill绑定表
 ```sql
-CREATE TABLE ab_agent_skill_binding (
+CREATE TABLE t_agent_skill_binding (
     id VARCHAR(32) PRIMARY KEY,
     agent_id VARCHAR(32) NOT NULL COMMENT 'Agent ID',
     skill_id VARCHAR(32) NOT NULL COMMENT 'Skill ID',
@@ -196,7 +196,7 @@ CREATE TABLE ab_agent_skill_binding (
 
 #### 3.2.1 Skill审核主表
 ```sql
-CREATE TABLE hm_skill_review (
+CREATE TABLE t_skill_review (
     id VARCHAR(32) PRIMARY KEY COMMENT '与Console的skill.id一致',
     name VARCHAR(64) NOT NULL COMMENT 'Skill名称',
     display_name VARCHAR(128) COMMENT '显示名称',
@@ -226,7 +226,7 @@ CREATE TABLE hm_skill_review (
 
 #### 3.2.2 审核日志表
 ```sql
-CREATE TABLE hm_skill_review_log (
+CREATE TABLE t_skill_review_log (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     skill_id VARCHAR(32) NOT NULL COMMENT 'Skill ID',
     skill_name VARCHAR(64) COMMENT 'Skill名称',
@@ -248,7 +248,7 @@ CREATE TABLE hm_skill_review_log (
 
 #### 3.3.1 Skill商店主表
 ```sql
-CREATE TABLE ss_skill (
+CREATE TABLE t_skill (
     id VARCHAR(32) PRIMARY KEY COMMENT '与Console的skill.id一致',
     name VARCHAR(64) NOT NULL COMMENT 'Skill名称',
     display_name VARCHAR(128) COMMENT '显示名称',
@@ -278,7 +278,7 @@ CREATE TABLE ss_skill (
 
 #### 3.3.2 Skill下载记录表
 ```sql
-CREATE TABLE ss_skill_download_log (
+CREATE TABLE t_skill_download_log (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     skill_id VARCHAR(32) NOT NULL COMMENT 'Skill ID',
     downloader_id VARCHAR(32) COMMENT '下载者ID(开发者或Agent)',

@@ -9,15 +9,15 @@
 
 ### 1.1 数据库设计
 - [ ] 创建AbilityConsole数据库DDL脚本
-  - [ ] `ab_skill` Skill主表
-  - [ ] `ab_skill_file` Skill文件表
-  - [ ] `ab_agent_skill_binding` Agent-Skill绑定表
+  - [ ] `t_skill` Skill主表
+  - [ ] `t_skill_file` Skill文件表
+  - [ ] `t_agent_skill_binding` Agent-Skill绑定表
 - [ ] 创建HAGManager数据库DDL脚本
-  - [ ] `hm_skill_review` Skill审核主表
-  - [ ] `hm_skill_review_log` 审核日志表
+  - [ ] `t_skill_review` Skill审核主表
+  - [ ] `t_skill_review_log` 审核日志表
 - [ ] 创建SkillStore数据库DDL脚本
-  - [ ] `ss_skill` Skill商店主表
-  - [ ] `ss_skill_download_log` Skill下载记录表
+  - [ ] `t_skill` Skill商店主表
+  - [ ] `t_skill_download_log` Skill下载记录表
 
 ### 1.2 对象存储集成
 - [ ] 集成OSS/MinIO SDK
