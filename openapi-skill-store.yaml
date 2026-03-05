@@ -906,6 +906,10 @@ components:
         description:
           type: string
           description: 描述
+        iconUrl:
+          type: string
+          format: uri
+          description: Skill图标URL
         version:
           type: string
           description: 版本号

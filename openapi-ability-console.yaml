@@ -814,6 +814,12 @@ components:
           maxLength: 1024
           description: 描述
           example: Extracts text and tables from PDF files
+        iconUrl:
+          type: string
+          format: uri
+          maxLength: 512
+          description: Skill图标URL
+          example: https://oss.example.com/icons/pdf-processing.png
         developerId:
           type: string
           description: 开发者ID

@@ -555,6 +555,7 @@ erDiagram
         varchar package_url "OBS存储路径"
         bigint package_size "包大小(字节)"
         varchar checksum "文件校验和(MD5)"
+        varchar icon_url "Skill图标URL"
         tinyint store_sync_status "Store同步状态:0未同步,1同步中,2已同步,3同步失败"
         datetime store_synced_at "Store最后同步时间"
         tinyint mgmt_sync_status "Mgmt同步状态"
@@ -636,6 +637,7 @@ erDiagram
 | package_url | VARCHAR(512) | 是 | - | OBS存储路径 |
 | package_size | BIGINT | 是 | 0 | 包大小(字节) |
 | checksum | VARCHAR(64) | 否 | NULL | 文件MD5校验和 |
+| icon_url | VARCHAR(512) | 否 | NULL | Skill图标URL |
 | store_sync_status | TINYINT | 是 | 0 | Store同步状态: 0=未同步, 1=同步中, 2=已同步, 3=同步失败 |
 | store_synced_at | DATETIME | 否 | NULL | Store最后同步时间 |
 | mgmt_sync_status | TINYINT | 是 | 0 | Mgmt同步状态 |
@@ -794,6 +796,7 @@ erDiagram
         varchar package_url "OBS路径"
         bigint package_size "包大小"
         varchar checksum "校验和"
+        varchar icon_url "Skill图标URL"
         text skill_md_content "SKILL.md内容"
         json metadata "元数据(JSON)"
         datetime created_at "创建时间"
@@ -878,6 +881,7 @@ INDEX idx_created_at (created_at)
 | package_url | VARCHAR(512) | 是 | - | OBS路径 |
 | package_size | BIGINT | 是 | 0 | 包大小(字节) |
 | checksum | VARCHAR(64) | 否 | NULL | 校验和(MD5) |
+| icon_url | VARCHAR(512) | 否 | NULL | Skill图标URL |
 | skill_md_content | TEXT | 否 | NULL | SKILL.md完整内容 |
 | metadata | JSON | 否 | NULL | 其他元数据(license,compatibility等) |
 | created_at | DATETIME | 是 | CURRENT_TIMESTAMP | 创建时间 |
@@ -940,6 +944,7 @@ erDiagram
         varchar package_url "OBS存储路径"
         bigint package_size "包大小(字节)"
         varchar checksum "文件校验和"
+        varchar icon_url "Skill图标URL"
         int download_count "下载次数"
         decimal rating "评分(0-5)"
         int rating_count "评分人数"
@@ -1007,6 +1012,7 @@ erDiagram
 | package_url | VARCHAR(512) | 是 | - | OBS存储路径 |
 | package_size | BIGINT | 是 | 0 | 包大小(字节) |
 | checksum | VARCHAR(64) | 否 | NULL | 文件MD5校验和 |
+| icon_url | VARCHAR(512) | 否 | NULL | Skill图标URL |
 | download_count | INT | 是 | 0 | 累计下载次数 |
 | rating | DECIMAL(2,1) | 是 | 0.0 | 评分(0.0-5.0) |
 | rating_count | INT | 是 | 0 | 评分人数 |
